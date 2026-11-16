@@ -26,7 +26,8 @@ export class Door {
   sprite: Phaser.GameObjects.Sprite;
 
   constructor(scene: Phaser.Scene, public def: import('./builder').DoorDef) {
-    this.sprite = scene.add.sprite(def.x, def.y, def.look === 'portal' ? 'portal' : 'door', 'closed').setOrigin(0.5, 1).setDepth(DEPTH.DECOR + 1);
+    const tex = def.look === 'portal' ? 'portal' : def.look === 'well' ? 'well' : def.look === 'ladder' ? 'ladder' : 'door';
+    this.sprite = scene.add.sprite(def.x, def.y, tex, 'closed').setOrigin(0.5, 1).setDepth(DEPTH.DECOR + 1);
     if (def.look === 'portal') {
       // a slow swirl and bob so it reads as alive
       scene.tweens.add({ targets: this.sprite, y: def.y - 3, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });

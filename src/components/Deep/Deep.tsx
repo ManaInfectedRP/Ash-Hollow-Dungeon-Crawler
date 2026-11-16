@@ -5,6 +5,9 @@ import type { RoomKind } from '../../game/dungeon/types';
 import { sfx } from '../../game/systems/Sfx';
 import { useGameStore } from '../../stores/gameStore';
 import { useRunStore, type MapState } from '../../stores/runStore';
+import { useEffect, useState } from 'react';
+import type { ItemDef, Rarity } from '../../game/data/items';
+import { WEAPONS } from '../../game/systems/attacks';
 import { ItemIcon } from '../Inventory/Inventory';
 
 /** what a room shows on the map once you have been in it */
@@ -228,6 +231,59 @@ export function RunSummary() {
         <button className="primary" onClick={close}>
           {died ? 'Rise again' : 'Rest'}
         </button>
+      </div>
+    </div>
+  );
+}
+
+export const RARITY_LABEL: Record<Rarity, string> = { common: 'Common', fine: 'Fine', rare: 'Rare', relic: 'Relic', cursed: 'Cursed' };
+
+/** the element a piece of gear carries (rolled onto it, or its moveset's own) */
+export function elementOf(def: ItemDef | null | undefined) {
+  if (!def) return null;
+  return def.element?.type ?? WEAPONS[def.weapon ?? '']?.element?.type ?? null;
+}
+
+/** a little gem in the item's corner: fire, frost or venom */
+export function ElementBadge({ def }: { def: ItemDef | null | undefined }) {
+  const el = elementOf(def);
+  if (!el) return null;
+  return <i className={`el-badge el-${el}`} title={el === 'cold' ? 'frost' : el} />;
+}
+
+export function RarityTag({ def }: { def: ItemDef | null | undefined }) {
+  if (!def?.rarity || def.rarity === 'common') return null;
+  return <span className={`rarity-tag rar-${def.rarity}`}>{RARITY_LABEL[def.rarity]}</span>;
+}
+
+/** picked up a rolled piece of gear: a card with everything it rolled */
+export function LootCard() {
+  const loot = useGameStore((s) => s.loot);
+  const [shown, setShown] = useState<number | null>(null);
+  useEffect(() => {
+    if (!loot) return;
+    setShown(loot.id);
+    const t = setTimeout(() => setShown(null), loot.def.rarity === 'relic' ? 5200 : 4000);
+    return () => clearTimeout(t);
+  }, [loot]);
+  if (!loot || shown !== loot.id) return null;
+  const def = loot.def;
+  return (
+    <div className={`loot-card rar-${def.rarity}`} key={loot.id}>
+      <div className="loot-icon">
+        <ItemIcon def={def} size={34} />
+        <ElementBadge def={def} />
+      </div>
+      <div className="loot-text">
+        <RarityTag def={def} />
+        <div className="loot-name" style={{ color: def.rarity ? RARITY_COLOR[def.rarity] : undefined }}>
+          {def.name}
+        </div>
+        {def.affixLines?.map((l) => (
+          <div key={l} className={`loot-line ${l.startsWith('Cursed') ? 'curse' : ''}`}>
+            {l}
+          </div>
+        ))}
       </div>
     </div>
   );

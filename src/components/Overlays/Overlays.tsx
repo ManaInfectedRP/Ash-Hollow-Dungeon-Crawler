@@ -8,7 +8,7 @@ import { computeEquip } from '../../game/systems/equipment';
 import { Inventory, ItemIcon } from '../Inventory/Inventory';
 import { Dialogue, Shop } from '../Dialogue/Dialogue';
 import { OptionsList } from '../Menu/MainMenu';
-import { MapOverlay, RunSummary, ShrineMenu, WellMenu } from '../Deep/Deep';
+import { LootCard, MapOverlay, RunSummary, ShrineMenu, WellMenu } from '../Deep/Deep';
 import { buffMods } from '../../stores/runStore';
 import { useGameStore } from '../../stores/gameStore';
 
@@ -323,6 +323,7 @@ export function Overlays() {
       </div>}
       <BannerView />
       <Toast />
+      <LootCard />
       <YouDied />
       <RestMenu />
       <Inventory />

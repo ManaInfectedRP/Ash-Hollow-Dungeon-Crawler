@@ -26,7 +26,7 @@ import { clearRunWorld, loadGame, saveGame, type WorldState } from '../systems/S
 import { derived, usePlayerStore } from '../../stores/playerStore';
 import { useGameStore } from '../../stores/gameStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
-import { ITEMS, lookId } from '../data/items';
+import { ITEMS, lookId, type Rarity } from '../data/items';
 import { NPCS } from '../data/npcs';
 import { debugState } from '../debugState';
 import type { StatusHit } from '../systems/attacks';
@@ -63,7 +63,27 @@ interface Pickup {
   sprite: Phaser.GameObjects.Image;
   glow: Phaser.GameObjects.Image;
   baseY: number;
+  /** rolled gear: a shaft of light in its rarity colour, its name when you are close */
+  beam?: Phaser.GameObjects.Image;
+  label?: Phaser.GameObjects.Text;
+  rarity?: Rarity;
 }
+
+/** how loud each rarity shouts from the floor: beam height, glow size, glints per second */
+const RARITY_FX: Record<Rarity, { beam: number; glow: number; glints: number }> = {
+  common: { beam: 0, glow: 1.3, glints: 0 },
+  fine: { beam: 0.45, glow: 1.4, glints: 0.6 },
+  rare: { beam: 0.75, glow: 1.6, glints: 1.5 },
+  relic: { beam: 1.2, glow: 2, glints: 4 },
+  cursed: { beam: 0.8, glow: 1.6, glints: 2 },
+};
+
+const destroyPickup = (p: Pickup) => {
+  p.sprite.destroy();
+  p.glow.destroy();
+  p.beam?.destroy();
+  p.label?.destroy();
+};
 
 interface SceneData {
   area?: string;
@@ -654,8 +674,7 @@ export class GameScene extends Phaser.Scene {
     for (const e of this.enemies) e.destroy();
     this.pickups = this.pickups.filter((p) => {
       if (p.id) return true;
-      p.sprite.destroy();
-      p.glow.destroy();
+      destroyPickup(p);
       return false;
     });
     this.enemies = this.level.enemies.map((e) => {
@@ -876,7 +895,15 @@ export class GameScene extends Phaser.Scene {
       const y = pr.hang ? pr.y + 6 : pr.y - 8;
       L.add(() => (this.gloom ? null : { x: pr.x, y, r: l.r, flicker: l.flicker }));
     }
-    for (const d of this.doors) L.add(() => (d.sprite.frame.name === 'sealed' ? { x: d.def.x, y: d.def.y - 20, r: 40, flicker: 0.05 } : null));
+    for (const d of this.doors)
+      L.add(() => {
+        const f = d.sprite.frame.name;
+        if (f === 'sealed') return { x: d.def.x, y: d.def.y - 20, r: 40, flicker: 0.05 };
+        // the well breathes a little light; daylight falls down the ladder home
+        if (f === 'open' && d.def.look === 'well') return { x: d.def.x, y: d.def.y - 14, r: 36, flicker: 0.04 };
+        if (f === 'open' && d.def.look === 'ladder') return { x: d.def.x, y: d.def.y - 40, r: 64, flicker: 0.02 };
+        return null;
+      });
     // lava lights the cave from below
     for (const lp of this.lavaPoints) L.add(() => ({ x: lp.x, y: lp.y - 6, r: 74, flicker: 0.1 }));
     // NPCs carry no light of their own – they sit in the dark until you bring light to them
@@ -1481,8 +1508,26 @@ export class GameScene extends Phaser.Scene {
     const tex = this.textures.exists(`item:${look}`) ? `item:${look}` : 'wisp';
     const sprite = this.add.image(x, y - 6, tex).setDepth(DEPTH.ITEMS + 1);
     if (tex === 'wisp') sprite.setBlendMode('ADD');
-    if (gear) glow.setTint(def?.rarity ? parseInt(RARITY_COLOR[def.rarity].slice(1), 16) : 0xffd080).setScale(def?.rarity === 'relic' ? 1.7 : 1.3);
-    this.pickups.push({ id, item, qty, sprite, glow, baseY: y - 6 });
+    const rarity = def?.rarity;
+    const pick: Pickup = { id, item, qty, sprite, glow, baseY: y - 6, rarity };
+    if (gear) {
+      const fxr = RARITY_FX[rarity ?? 'common'];
+      const color = rarity ? parseInt(RARITY_COLOR[rarity].slice(1), 16) : 0xffd080;
+      glow.setTint(color).setScale(fxr.glow);
+      if (fxr.beam > 0) {
+        // a pillar of light in the rarity's colour, so rolled gear can be spotted across the room
+        pick.beam = this.add.image(x, y, 'loot-beam').setOrigin(0.5, 1).setBlendMode('ADD').setTint(color).setScale(1, fxr.beam).setAlpha(0).setDepth(DEPTH.ITEMS - 1);
+        this.tweens.add({ targets: pick.beam, alpha: 0.85, duration: 500 });
+        pick.label = this.add
+          .text(x, y - 22, def.name, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '8px', color: RARITY_COLOR[rarity!], stroke: '#07060a', strokeThickness: 2 })
+          .setOrigin(0.5, 1)
+          .setResolution(4)
+          .setDepth(DEPTH.FG + 3)
+          .setAlpha(0);
+      }
+      if (rarity === 'relic') this.fx.ember(x, y - 8, 14);
+    }
+    this.pickups.push(pick);
   }
 
   private createBossArena() {
@@ -2083,8 +2128,9 @@ export class GameScene extends Phaser.Scene {
       useRunStore.setState({ meta: { ...rs.meta, waystones: ws, bossesFelled: rs.meta.bossesFelled + 1 } });
       const label = `${this.floor.seed}:hoard`;
       const hoard = rollBossDrop(new Rng(hashSeed(label)), this.depth, arena.type, label);
-      const bx = Phaser.Math.Clamp(this.boss?.x ?? arena.x, arena.fogX + 60, this.mapW - 120);
-      hoard.forEach((r, i) => this.time.delayedCall(1400 + i * 260, () => this.spawnPickup(bx + (i - 1) * 16, arena.y, r.id, r.qty)));
+      // spread out, and clear of the well and the ladder at the far wall
+      const bx = Phaser.Math.Clamp(this.boss?.x ?? arena.x, arena.fogX + 80, this.mapW - 260);
+      hoard.forEach((r, i) => this.time.delayedCall(1400 + i * 260, () => this.spawnPickup(bx + (i - 1) * 30, arena.y, r.id, r.qty)));
       this.time.delayedCall(3400, () => useGameStore.getState().showToast(`A waystone wakes at the well: depth ${next}`));
     }
   }
@@ -2397,7 +2443,10 @@ export class GameScene extends Phaser.Scene {
       } else if (d) {
         const open = !d.def.requires || this.hasFlag(d.def.requires);
         const to = d.def.to;
-        prompt = !open ? 'Examine door' : to === '__descend' ? 'Descend' : to === '__camp' ? 'Return to camp' : to === '__well' ? 'Look into the well' : 'Enter';
+        const look = d.def.look;
+        prompt = !open
+          ? look === 'well' ? 'Examine the well' : look === 'ladder' ? 'Examine the ladder' : 'Examine door'
+          : to === '__descend' ? 'Climb down the well' : to === '__camp' ? 'Climb the ladder home' : to === '__well' ? 'Look into the well' : 'Enter';
         if (pressed) this.useDoor(d);
       }
       if (pressed) prompt = null;
@@ -2407,21 +2456,55 @@ export class GameScene extends Phaser.Scene {
 
   private checkPickups() {
     const p = this.player;
+    const dt = this.game.loop.delta / 1000;
+    // only the nearest piece of rolled gear shows its name, so a pile of loot stays readable
+    let named: Pickup | null = null;
+    let best = 64;
+    for (const it of this.pickups) {
+      if (!it.label || Math.abs(it.baseY - p.y) > 40) continue;
+      const d = Math.abs(it.sprite.x - p.x);
+      if (d < best) {
+        best = d;
+        named = it;
+      }
+    }
     for (const it of this.pickups) {
       const bob = Math.sin(this.t * 3 + it.baseY) * 2;
       it.sprite.y = it.glow.y = it.baseY + bob;
       it.glow.setAlpha(0.6 + Math.sin(this.t * 5) * 0.2);
+      if (!it.rarity) continue;
+      const fxr = RARITY_FX[it.rarity];
+      if (it.beam) it.beam.setAlpha(0.65 + Math.sin(this.t * 2.2 + it.baseY) * 0.2);
+      // its name fades in as you come close
+      if (it.label) {
+        const near = it === named;
+        it.label.setAlpha(Phaser.Math.Clamp(it.label.alpha + (near ? 4 : -4) * dt, 0, 1));
+        it.label.y = it.sprite.y - 12;
+      }
+      if (fxr.glints && Math.random() < fxr.glints * dt) {
+        const g = this.add
+          .image(it.sprite.x + Phaser.Math.Between(-7, 7), it.sprite.y + Phaser.Math.Between(-9, 5), 'glint')
+          .setBlendMode('ADD')
+          .setTint(parseInt(RARITY_COLOR[it.rarity].slice(1), 16))
+          .setDepth(DEPTH.ITEMS + 2)
+          .setScale(0.3);
+        this.tweens.add({ targets: g, scale: 1, alpha: 0, y: g.y - 6, duration: 600, ease: 'Quad.easeOut', onComplete: () => g.destroy() });
+      }
     }
     if (!p.alive) return;
     this.pickups = this.pickups.filter((it) => {
       if (Math.abs(it.sprite.x - p.x) > 14 || Math.abs(it.baseY - p.y) > 20) return true;
-      it.sprite.destroy();
-      it.glow.destroy();
+      destroyPickup(it);
       if (it.id) this.world.items.push(it.id);
       useInventoryStore.getState().add(it.item, it.qty);
       if (this.floor) markAtRisk(it.item, it.qty);
       const def = ITEMS[it.item];
-      useGameStore.getState().showToast(`${def?.name ?? it.item}${it.qty > 1 ? ` ×${it.qty}` : ''}`);
+      if (def?.rarity && def.rarity !== 'common') {
+        // rolled gear gets a card of its own: name, rarity, every affix
+        useGameStore.getState().showLoot(def);
+        if (def.rarity === 'relic') sfx.levelUp();
+        this.fx.ember(it.sprite.x, it.sprite.y, def.rarity === 'relic' ? 24 : 10);
+      } else useGameStore.getState().showToast(`${def?.name ?? it.item}${it.qty > 1 ? ` ×${it.qty}` : ''}`);
       sfx.pickup();
       saveGame(this.world);
       return false;

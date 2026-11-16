@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Buff } from './runStore';
+import type { ItemDef } from '../game/data/items';
 
 export type BannerTone = 'gold' | 'red' | 'white';
 export interface Banner {
@@ -36,8 +37,11 @@ export interface GameStore {
   shrine: { id: string; options: Buff[] } | null;
   /** the full map is open */
   mapOpen: boolean;
+  /** rolled gear just picked up (the loot card) */
+  loot: { def: ItemDef; id: number } | null;
   showBanner: (text: string, tone?: BannerTone, sub?: string) => void;
   showToast: (text: string) => void;
+  showLoot: (def: ItemDef) => void;
 }
 
 let seq = 1;
@@ -71,8 +75,10 @@ export const useGameStore = create<GameStore>((set) => ({
   well: false,
   shrine: null,
   mapOpen: false,
+  loot: null,
   showBanner: (text, tone = 'gold', sub) => set({ banner: { text, tone, sub, id: seq++ } }),
   showToast: (text) => set({ toast: { text, id: seq++ } }),
+  showLoot: (def) => set({ loot: { def: { ...def }, id: seq++ } }),
 }));
 
 // persist the player's options

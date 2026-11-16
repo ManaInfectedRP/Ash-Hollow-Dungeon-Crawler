@@ -1390,13 +1390,6 @@ html.fake-landscape {
   color: #e08a6a;
   text-shadow: 0 1px 2px #000;
 }
-.inv-cell .rarity-bar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 2px;
-}
 .affixes {
   margin: 0;
   padding-left: 16px;
@@ -1406,4 +1399,111 @@ html.fake-landscape {
 }
 .affixes .curse {
   color: #c76bff;
+}
+
+/* ------------------------------------------------------------------ rolled gear: rarity frames */
+.rar-fine { --rc: #8fd27a; }
+.rar-rare { --rc: #6fa8ff; }
+.rar-relic { --rc: #ffb347; }
+.rar-cursed { --rc: #c76bff; }
+.inv-cell[class*='rar-'],
+.eq-slot[class*='rar-'] {
+  border-color: color-mix(in srgb, var(--rc) 70%, transparent);
+  background: radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--rc) 22%, transparent), rgba(255, 255, 255, 0.03) 70%);
+  box-shadow: inset 0 0 6px color-mix(in srgb, var(--rc) 35%, transparent);
+}
+.inv-cell.rar-relic,
+.eq-slot.rar-relic,
+.loot-card.rar-relic {
+  animation: relic-shine 2.4s ease-in-out infinite;
+}
+.inv-cell.rar-cursed,
+.eq-slot.rar-cursed,
+.loot-card.rar-cursed {
+  animation: curse-pulse 3s ease-in-out infinite;
+}
+@keyframes relic-shine {
+  0%, 100% { box-shadow: inset 0 0 6px rgba(255, 179, 71, 0.35), 0 0 0 rgba(255, 179, 71, 0); }
+  50% { box-shadow: inset 0 0 10px rgba(255, 179, 71, 0.6), 0 0 8px rgba(255, 179, 71, 0.45); }
+}
+@keyframes curse-pulse {
+  0%, 100% { box-shadow: inset 0 0 6px rgba(199, 107, 255, 0.3); }
+  50% { box-shadow: inset 0 0 12px rgba(199, 107, 255, 0.65); }
+}
+.icon-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+.el-badge {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  width: 6px;
+  height: 6px;
+  transform: rotate(45deg);
+  border: 1px solid rgba(0, 0, 0, 0.7);
+}
+.icon-wrap .el-badge {
+  right: -2px;
+  top: -2px;
+}
+.el-fire { background: #ff8a3a; box-shadow: 0 0 4px #ff8a3a; }
+.el-cold { background: #9ad8ff; box-shadow: 0 0 4px #9ad8ff; }
+.el-poison { background: #8ad24a; box-shadow: 0 0 4px #8ad24a; }
+.rarity-tag {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rc);
+  border: 1px solid color-mix(in srgb, var(--rc) 60%, transparent);
+  padding: 0 5px;
+  margin-bottom: 2px;
+}
+.detail-head[class*='rar-'] .detail-icon {
+  padding: 3px;
+  border: 1px solid color-mix(in srgb, var(--rc) 70%, transparent);
+  background: radial-gradient(circle, color-mix(in srgb, var(--rc) 25%, transparent), transparent 75%);
+}
+.loot-card {
+  position: absolute;
+  right: calc(16px + var(--safe-r));
+  bottom: 92px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  max-width: min(320px, 70vw);
+  padding: 8px 12px 8px 10px;
+  background: rgba(8, 6, 10, 0.88);
+  border: 1px solid color-mix(in srgb, var(--rc, #d8b060) 70%, transparent);
+  border-left-width: 3px;
+  pointer-events: none;
+  animation: loot-in 0.35s ease-out both, loot-out 0.5s ease-in 3.6s forwards;
+}
+.loot-card.rar-relic {
+  animation: loot-in 0.35s ease-out both, relic-shine 2.4s ease-in-out infinite, loot-out 0.5s ease-in 4.8s forwards;
+}
+.loot-icon {
+  position: relative;
+  padding: 3px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--rc, #d8b060) 35%, transparent), transparent 75%);
+}
+.loot-name {
+  font-size: 15px;
+  line-height: 1.2;
+}
+.loot-line {
+  font-size: 12px;
+  color: #a8d8ff;
+}
+.loot-line.curse {
+  color: #c76bff;
+}
+@keyframes loot-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes loot-out {
+  to { opacity: 0; }
 }

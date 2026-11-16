@@ -3,6 +3,7 @@ import { EventBus } from '../../game/EventBus';
 import { ITEMS, lookId, type ItemDef, type ItemKind } from '../../game/data/items';
 import { RARITY_COLOR } from '../../game/dungeon/loot';
 import { buffMods, useRunStore } from '../../stores/runStore';
+import { ElementBadge, RarityTag } from '../Deep/Deep';
 import { iconUrl } from '../../game/gfx/icons';
 import { itemSpriteUrl } from '../../game/gfx/sprites';
 import { WEAPONS } from '../../game/systems/attacks';
@@ -33,8 +34,11 @@ function Slot({ label, id, onClick }: { label: string; id: string | null; onClic
   const upg = useInventoryStore((s) => (id ? s.upgrades[id] : 0));
   const def = id ? ITEMS[id] : null;
   return (
-    <button className="eq-slot" onClick={onClick}>
-      <ItemIcon def={def} size={36} />
+    <button className={`eq-slot ${def?.rarity ? `rar-${def.rarity}` : ''}`} onClick={onClick}>
+      <span className="icon-wrap">
+        <ItemIcon def={def} size={36} />
+        <ElementBadge def={def} />
+      </span>
       <div className="eq-text">
         <span className="eq-label">{label}</span>
         <span className="eq-name" style={{ color: def?.rarity ? RARITY_COLOR[def.rarity] : undefined }}>
@@ -185,12 +189,12 @@ export function Inventory() {
           <div className="inv-grid">
             {list.length === 0 && <div className="inv-empty">Nothing here.</div>}
             {list.map(([id, qty]) => (
-              <button key={id} className={`inv-cell ${sel === id ? 'sel' : ''}`} onClick={() => setSel(id)}>
+              <button key={id} className={`inv-cell ${sel === id ? 'sel' : ''} ${ITEMS[id]?.rarity ? `rar-${ITEMS[id].rarity}` : ''}`} onClick={() => setSel(id)}>
                 <ItemIcon def={ITEMS[id]} />
+                <ElementBadge def={ITEMS[id]} />
                 {qty > 1 && <span className="qty">{qty}</span>}
                 {isEquipped(id) && <span className="eq-mark">E</span>}
                 {atRisk?.[id] ? <span className="risk-mark" title="Found in the Deep – lost if you die before you bring it home">!</span> : null}
-                {ITEMS[id]?.rarity && ITEMS[id].rarity !== 'common' ? <i className="rarity-bar" style={{ background: RARITY_COLOR[ITEMS[id].rarity!] }} /> : null}
                 {upgrades[id] ? <span className="upg">+{upgrades[id]}</span> : null}
               </button>
             ))}
@@ -200,9 +204,13 @@ export function Inventory() {
         <section className="inv-right">
           {def ? (
             <>
-              <div className="detail-head">
-                <ItemIcon def={def} size={40} />
+              <div className={`detail-head ${def.rarity ? `rar-${def.rarity}` : ''}`}>
+                <span className="icon-wrap detail-icon">
+                  <ItemIcon def={def} size={40} />
+                  <ElementBadge def={def} />
+                </span>
                 <div>
+                  <RarityTag def={def} />
                   <div className="detail-name" style={{ color: def.rarity ? RARITY_COLOR[def.rarity] : undefined }}>
                     {def.name}
                     {upgrades[def.id] ? ` +${upgrades[def.id]}` : ''}

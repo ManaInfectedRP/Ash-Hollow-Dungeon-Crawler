@@ -22,7 +22,7 @@ export function buildCamp(): LevelData {
   b.data.bonfires.push({ id: CAMP_FIRE, ...b.at(32, 19) });
   b.data.npcs.push({ id: 'quartermaster', ...b.at(20, 19) });
   b.data.npcs.push({ id: 'keeper', ...b.at(54, 19) });
-  b.door({ id: 'well', to: '__well', entry: '' }, 66, 18);
+  b.door({ id: 'well', to: '__well', entry: '', look: 'well' }, 66, 18);
 
   const prop = b.prop.bind(b);
   prop('tombstone', 12, 19);

@@ -20,8 +20,8 @@ export interface DoorDef {
   sealed?: boolean;
   /** world flag set when this door is used (e.g. unlocking a shortcut from this side) */
   sets?: string;
-  /** 'portal': a swirling cloud instead of a door (faint while locked) */
-  look?: 'portal';
+  /** 'portal': a swirling cloud instead of a door (faint while locked); 'well': the way down; 'ladder': the way home */
+  look?: 'portal' | 'well' | 'ladder';
 }
 
 export interface BossArena {

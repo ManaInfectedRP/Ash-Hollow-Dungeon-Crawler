@@ -403,7 +403,7 @@ function buildFloor(seed: number, depth: number, band: BandDef): FloorResult {
         const s = take([18, 5, 17, 6, 19, 4]);
         if (s) {
           stairs = at(s.c, s.row);
-          b.door({ id: 'stairs', to: '__descend', entry: '' }, ox + s.c, s.row);
+          b.door({ id: 'stairs', to: '__descend', entry: '', look: 'well' }, ox + s.c, s.row);
           b.prop('torch', ox + s.c - 2, s.row, { light: true });
           b.prop('torch', ox + s.c + 2, s.row, { light: true });
         }
@@ -534,8 +534,8 @@ function buildBossFloor(seed: number, depth: number, band: BandDef): FloorResult
     banner: `${band.bossName.replace(/^The /, '').toUpperCase()} FELLED`,
     sub: `Depth ${depth} is yours`,
   };
-  b.door({ id: 'descend', to: '__descend', entry: '', requires: flag, sealed: true, lockedMsg: 'The way down is sealed while the guardian lives.' }, 90, F);
-  b.door({ id: 'home', to: '__camp', entry: '', requires: flag, sealed: true, lockedMsg: 'The way home is sealed while the guardian lives.' }, 94, F);
+  b.door({ id: 'descend', to: '__descend', entry: '', requires: flag, sealed: true, look: 'well', lockedMsg: 'Chains bind the well while the guardian lives.' }, 89, F);
+  b.door({ id: 'home', to: '__camp', entry: '', requires: flag, sealed: true, look: 'ladder', lockedMsg: 'The ladder home hangs out of reach while the guardian lives.' }, 94, F);
   // a couple of foes on the landing to wake you up
   const pool = band.enemies.map(([t, wgt]) => [t, wgt] as const);
   b.enemy(rng.weighted(pool), 15, F);
@@ -562,7 +562,7 @@ function buildBossFloor(seed: number, depth: number, band: BandDef): FloorResult
     chests: [],
     shrines: [],
     stainSpot: b.at(26, F),
-    stairs: b.at(90, F),
+    stairs: b.at(89, F),
   };
   return level;
 }
