@@ -440,7 +440,7 @@ function buildFloor(seed: number, depth: number, band: BandDef): FloorResult {
         break;
       }
       default:
-        spawnEnemies(crng.int(2, depth > 4 ? 4 : 3), false);
+        spawnEnemies(depth === 1 ? crng.int(1, 2) : crng.int(2, depth > 4 ? 4 : 3), false);
         if (crng.chance(0.3)) {
           // on the floor itself: ledges may have lost their way up to a doorway cut
           const low = usable.filter((p) => p.row === oy + FLOOR);
