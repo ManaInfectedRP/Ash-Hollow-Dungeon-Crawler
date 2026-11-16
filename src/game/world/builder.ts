@@ -64,7 +64,7 @@ export interface LevelData {
   tiles: number[][];
   spawn: { x: number; y: number };
   bonfires: { id: string; x: number; y: number }[];
-  enemies: { type: EnemyType; x: number; y: number }[];
+  enemies: { type: EnemyType; x: number; y: number; elite?: string }[];
   /** world item pickups (id is the persistent world id, item is the ITEMS id) */
   items: { id: string; x: number; y: number; item: string; qty: number }[];
   /** decorative atlas props; hang = anchored at the top (chains, banners) */
@@ -78,6 +78,8 @@ export interface LevelData {
   icicles: { x: number; y: number }[];
   /** rotten planks: one-way, give way a moment after you step on them and grow back later */
   crumbles: { x: number; y: number; w: number }[];
+  /** generated dungeon floors only: rooms, chests, shrines, the minimap (see dungeon/generate.ts) */
+  delve?: import('../dungeon/types').FloorMeta;
 }
 
 /** '.' air, '#' rock, '=' plank, '^' spikes, '~' lava, 'i' ice (solid, slippery), '%' bog water, 's' paved stone (never grassy/sandy) */

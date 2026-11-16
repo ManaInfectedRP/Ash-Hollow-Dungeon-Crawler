@@ -35,6 +35,24 @@ export interface UseEffect {
   regen?: { amount: number; duration: number };
   souls?: number;
   maxFlasks?: number;
+  /** warps you back to the camp with your spoils (the Deep only) */
+  returnHome?: boolean;
+}
+
+export type Rarity = 'common' | 'fine' | 'rare' | 'relic' | 'cursed';
+
+/** bonuses carried by generated (dungeon) gear – summed over everything you wear, see computeEquip */
+export interface ItemMods {
+  /** +fraction of attack damage */
+  dmg?: number;
+  /** HP restored per enemy hit */
+  lifeOnHit?: number;
+  /** +fraction of stamina regeneration */
+  stamina?: number;
+  /** +fraction of souls from kills */
+  souls?: number;
+  /** multiplies the weapon's weight (armor and shields carry their own) */
+  weightMul?: number;
 }
 
 export interface ItemDef {
@@ -48,7 +66,20 @@ export interface ItemDef {
   armor?: ArmorDef;
   shield?: ShieldDef;
   use?: UseEffect;
+  /** generated gear: the item it was rolled from (its sprite, sheet and moveset) */
+  base?: string;
+  rarity?: Rarity;
+  /** one line per rolled affix, for the item card */
+  affixLines?: string[];
+  mods?: ItemMods;
+  /** weapon infusion rolled onto a plain weapon (overrides the moveset's own element) */
+  element?: { type: 'fire' | 'cold' | 'poison'; power: number };
+  /** sell price at a merchant */
+  value?: number;
 }
+
+/** id used for sprites / icons / sheets: the base item for generated gear */
+export const lookId = (def: ItemDef | null | undefined) => (def ? def.base ?? def.id : null);
 
 export const NAKED: ArmorDef = {
   defense: 0,
@@ -277,6 +308,11 @@ export const ITEMS: Record<string, ItemDef> = {
     id: 'flask_shard', name: 'Ashen Flask Shard', kind: 'consumable', icon: 'flaskShard',
     desc: 'A warm shard of the first flask. Use to permanently gain one flask charge.',
     use: { maxFlasks: 1 },
+  },
+  return_ember: {
+    id: 'return_ember', name: 'Ember of Return', kind: 'consumable', icon: 'herb',
+    desc: 'A coal from the camp fire. Crush it in the Deep to be carried home – with every spoil you hold.',
+    use: { returnHome: true },
   },
   titanite: {
     id: 'titanite', name: 'Titanite Shard', kind: 'material', icon: 'shard',
