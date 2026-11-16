@@ -1,5 +1,5 @@
 {
-  "name": "souls-platformer",
+  "name": "ash-hollow-deep",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -12,7 +12,8 @@
     "atlas": "python -I tools/atlas/extract_atlas.py",
     "icons": "node tools/icons/build-icons.mjs",
     "android": "npm run build && npx cap sync android",
-    "qr": "node tools/qr/make-qr.mjs"
+    "qr": "node tools/qr/make-qr.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.0",

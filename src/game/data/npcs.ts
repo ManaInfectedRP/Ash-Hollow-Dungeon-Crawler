@@ -45,36 +45,37 @@ const goto = (label: string, node: string): DialogueChoice => ({ label, action: 
 const wares: DialogueChoice = { label: 'Show me your wares', action: { type: 'shop' } };
 
 export const NPCS: Record<string, NpcDef> = {
-  hessa: {
-    id: 'hessa',
-    name: 'Hessa, the Ash-Merchant',
+  quartermaster: {
+    id: 'quartermaster',
+    name: 'Hessa, the Quartermaster',
     sheet: 'npc-merchant',
-    start: (f) => (f.hessa_met ? 'again' : 'first'),
+    start: (f) => (f.qm_met ? 'again' : 'first'),
     nodes: {
       first: {
-        sets: 'hessa_met',
+        sets: 'qm_met',
+        gives: [{ item: 'return_ember', qty: 1 }],
         lines: [
-          'Oh? Footsteps that still sound like footsteps. How rare.',
-          "I am Hessa. I trade in what the hollow leaves behind – bread, herbs, a little stone that remembers being steel.",
-          'Souls for goods. The dead have no use for either, but you might.',
+          'Another one for the well. They all come to the well, sooner or later.',
+          "I am Hessa. I keep the camp fed and the blades sharp. Souls for goods – and I'll buy whatever you drag back up.",
+          'Take this ember. Crush it down there and the fire will pull you home, spoils and all. Use it before you are too greedy to.',
         ],
-        choices: [wares, goto('What is this place?', 'lore'), end()],
+        choices: [wares, goto('Tell me about the Deep', 'lore'), end()],
       },
       again: {
-        lines: ['Back again, and still warm. Good. What will it be?'],
+        lines: ['Back up, and still breathing. What will it be?'],
         choices: [wares, goto('Any advice?', 'advice'), end()],
       },
       lore: {
         lines: [
-          'This was a fortress once. The Warden kept its gate long after there was nothing left to guard.',
-          'Beyond his arena the old crypts sink into the earth. Some say a path from there leads back to the ruined gate.',
+          'Nobody dug the Deep. It opened, the night the king burned. It goes down further than anyone has lived to measure.',
+          'It changes behind you. Every descent is a different maze – but the guardians are always waiting at the same depths.',
         ],
         choices: [wares, end()],
       },
       advice: {
         lines: [
-          "Heavy armour turns blades, but you'll roll like a sack of stones. Watch your load.",
-          'And reinforce that weapon at a bonfire. Titanite does more good in steel than in my pocket.',
+          'Whatever you pick up down there is only borrowed until you bring it home. Die, and the Deep takes it back.',
+          'Heavy armour turns blades, but you will roll like a sack of stones. And reinforce that weapon – Titanite does more good in steel than in my pocket.',
         ],
         choices: [wares, end()],
       },
@@ -82,48 +83,69 @@ export const NPCS: Record<string, NpcDef> = {
     shop: [
       { item: 'bread', price: 60 },
       { item: 'ember_herb', price: 150 },
+      { item: 'return_ember', price: 600 },
       { item: 'titanite', price: 500 },
       { item: 'shortsword', price: 400 },
       { item: 'longsword', price: 900 },
+      { item: 'rapier', price: 900 },
       { item: 'twin_daggers', price: 1200 },
       { item: 'buckler', price: 450 },
+      { item: 'kite_shield', price: 1100 },
       { item: 'hunter_leathers', price: 1500 },
-      { item: 'tower_shield', price: 2200 },
+      { item: 'knight_armor', price: 2600 },
     ],
   },
 
-  corvin: {
-    id: 'corvin',
-    name: 'Ser Corvin of the Blue Watch',
+  keeper: {
+    id: 'keeper',
+    name: 'Ser Corvin, Keeper of the Well',
     sheet: 'npc-corvin',
-    start: (f) => (f.corvin_met ? (f.shortcut ? 'shortcut' : 'again') : 'first'),
+    start: (f) => (f.keeper_met ? 'again' : 'first'),
     nodes: {
       first: {
-        sets: 'corvin_met',
+        sets: 'keeper_met',
         gives: [{ item: 'ember_herb', qty: 2 }],
         lines: [
-          'Hm. You felled the Warden? Then the gate above is quiet at last.',
-          'I came down here hunting the thing that hollowed my brothers. I found only more of them.',
-          'Take these herbs. My hands shake too much to make use of them.',
-          'The ghouls are quick – wait for their lunge, then strike. The archers will not follow you up close.',
+          'So you mean to go down. Listen, then, and you might come back up.',
+          'Every third floor, a guardian bars the way. Fell one and a waystone wakes here at the well – you can start from below it next time.',
+          'Past the guardian, two doors: one down, one home. Home keeps what you carry. Down keeps you carrying it.',
+          'Fall, and your souls stay where you fell. Reach that depth again – any descent – and you can take them back.',
         ],
-        choices: [goto('Is there a way out?', 'exit'), end('Rest well')],
+        choices: [goto('And the shrines?', 'shrines'), end('I will remember')],
       },
       again: {
-        lines: ['Still alive? The crypt has not swallowed you yet.'],
-        choices: [goto('Is there a way out?', 'exit'), end('Rest well')],
+        lines: ['The well is listening. It always is.'],
+        choices: [goto('Remind me how it works', 'rules'), goto('And the shrines?', 'shrines'), end('Farewell')],
       },
-      exit: {
+      rules: {
         lines: [
-          'East, past the low crypt. There is a door that opens onto the old gate – barred from this side.',
-          'Open it and you will never have to cross that bridge again.',
+          'A guardian every third floor. Fell it and its waystone wakes. Two doors after: down, or home.',
+          'Spoils are only yours once they are up here. Souls stay where you fall.',
         ],
-        choices: [end('Thank you')],
+        choices: [end('Farewell')],
       },
-      shortcut: {
-        lines: ['You opened the old gate. Good. A little light gets down here now.'],
-        choices: [end('Rest well')],
+      shrines: {
+        lines: [
+          'Old altars, older than the Deep. Kneel and one offers you a boon until you leave the Deep.',
+          'Chests bound in gold hold better things. Things that glow and hunt in pairs guard them – those are the worst of the lot.',
+        ],
+        choices: [end('Farewell')],
       },
     },
+  },
+
+  wanderer: {
+    id: 'wanderer',
+    name: 'A Wandering Peddler',
+    sheet: 'npc-merchant',
+    start: () => 'hello',
+    nodes: {
+      hello: {
+        lines: ['Heh. A customer, this far down. My wares change with every floor – as does the floor.'],
+        choices: [wares, end()],
+      },
+    },
+    // stock is rolled per floor (GameScene → runStore.run.shops)
+    shop: [],
   },
 };

@@ -8,17 +8,25 @@ import { makeEnemy, type Enemy } from '../entities/Enemy';
 import { makeBoss, type Boss } from '../entities/Boss';
 import { Bonfire } from '../world/Bonfire';
 import { Door, Npc } from '../world/Npc';
-import { AREAS, START_AREA } from '../world/areas';
+import { AREAS, DEEP_AREA, START_AREA } from '../world/areas';
+import { CAMP_FIRE } from '../world/camp';
+import { generateFloor } from '../dungeon/generate';
+import type { ChestDef, FloorMeta, ShrineDef } from '../dungeon/types';
+import { Rng, hashSeed, randomSeed } from '../dungeon/rng';
+import { dmgScale, hpScale, soulScale, waystoneDepth } from '../dungeon/tables';
+import { RARITY_COLOR, rollBossDrop, rollChest, rollEliteDrop, rollGear } from '../dungeon/loot';
+import { BOONS, markAtRisk, useRunStore, type Run, type ShopItem } from '../../stores/runStore';
+import { equipStats } from '../systems/equipment';
 import type { LevelData } from '../world/builder';
 import { CombatSystem, type Hittable } from '../systems/CombatSystem';
 import { Fx } from '../systems/Fx';
 import { Lighting, type Light } from '../systems/Lighting';
 import { sfx } from '../systems/Sfx';
-import { loadGame, saveGame, type WorldState } from '../systems/SaveSystem';
+import { clearRunWorld, loadGame, saveGame, type WorldState } from '../systems/SaveSystem';
 import { derived, usePlayerStore } from '../../stores/playerStore';
 import { useGameStore } from '../../stores/gameStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
-import { ITEMS } from '../data/items';
+import { ITEMS, lookId } from '../data/items';
 import { NPCS } from '../data/npcs';
 import { debugState } from '../debugState';
 import type { StatusHit } from '../systems/attacks';
@@ -63,7 +71,24 @@ interface SceneData {
   entry?: string;
   /** debug: exact spot to arrive at (feet position) */
   at?: { x: number; y: number };
+  /** the Deep: which floor */
+  depth?: number;
+  /** debug: start a descent with this seed */
+  seed?: number;
 }
+
+/** elite affix -> tint */
+const ELITE_TINT: Record<string, number> = {
+  hulking: 0xe0a060,
+  frenzied: 0xff6a5a,
+  frostbound: 0x8ad0ff,
+  venomous: 0x9ae060,
+  vampiric: 0xc87aff,
+};
+/** item ids → copies of their definitions, for the run summary */
+const snapshot = (list: [string, number][]) =>
+  list.filter(([id]) => ITEMS[id]).map(([id, n]) => ({ id, n, def: { ...ITEMS[id] } }));
+const ELITE_MOTE: Record<string, 'fire' | 'cold' | 'poison'> = { frostbound: 'cold', venomous: 'poison' };
 
 /** light radius per light-emitting prop */
 const PROP_LIGHT: Record<string, { r: number; flicker: number }> = {
@@ -186,6 +211,15 @@ export class GameScene extends Phaser.Scene {
   npcs: Npc[] = [];
   doors: Door[] = [];
 
+  /** the Deep: current depth (0 in the camp), how hard enemies hit, the generated floor */
+  depth = 0;
+  enemyDmgMul = 1;
+  floor: FloorMeta | null = null;
+  private chests: { def: ChestDef; sprite: Phaser.GameObjects.Sprite; open: boolean }[] = [];
+  private shrines: { def: ShrineDef; sprite: Phaser.GameObjects.Sprite; used: boolean }[] = [];
+  /** minimap cell the player is in */
+  private cell = '';
+
   private entry: string | undefined;
   private bg: { s: Phaser.GameObjects.TileSprite; f: number }[] = [];
   private moon: Phaser.GameObjects.Image | null = null;
@@ -231,8 +265,22 @@ export class GameScene extends Phaser.Scene {
     // the world state lives across area changes; only the very first boot reads the save
     if (!this.registry.has('world')) this.registry.set('world', loadGame());
     this.world = this.registry.get('world');
-    this.area = data.area ?? this.world.lastArea ?? START_AREA;
-    if (!AREAS[this.area]) this.area = START_AREA;
+    let run = useRunStore.getState().run;
+    this.area = data.area ?? (run ? DEEP_AREA : this.world.lastArea ?? START_AREA);
+    // debug / URL: straight into the Deep from the menu
+    if (this.area === DEEP_AREA && !run) run = this.newRun(data.depth ?? 1, data.seed);
+    if (this.area !== DEEP_AREA && !AREAS[this.area]) this.area = START_AREA;
+    this.depth = this.area === DEEP_AREA ? data.depth ?? run!.depth : 0;
+    if (run && this.area === DEEP_AREA && run.depth !== this.depth) useRunStore.setState({ run: { ...run, depth: this.depth } });
+  }
+
+  /** a fresh descent from a waystone */
+  private newRun(depth: number, seed?: number): Run {
+    const run: Run = { seed: seed ?? randomSeed(), depth, startDepth: depth, atRisk: {}, buffs: [], kills: 0, shops: {} };
+    clearRunWorld(this.world);
+    const meta = useRunStore.getState().meta;
+    useRunStore.setState({ run, summary: null, map: null, meta: { ...meta, runs: meta.runs + 1 } });
+    return run;
   }
 
   // ------------------------------------------------------------------ setup
@@ -265,13 +313,29 @@ export class GameScene extends Phaser.Scene {
     this.bossActive = false;
     this.talkingTo = null;
     this.travelling = false;
+    this.chests = [];
+    this.shrines = [];
+    this.cell = '';
 
-    this.level = AREAS[this.area]();
+    if (this.area === DEEP_AREA) {
+      const run = useRunStore.getState().run!;
+      const fl = generateFloor(run.seed, this.depth);
+      this.level = fl;
+      this.floor = fl.delve;
+      this.enemyDmgMul = dmgScale(this.depth);
+      const meta = useRunStore.getState().meta;
+      if (this.depth > meta.deepest) useRunStore.setState({ meta: { ...meta, deepest: this.depth } });
+    } else {
+      this.level = AREAS[this.area]();
+      this.floor = null;
+      this.enemyDmgMul = 1;
+    }
+    this.publishMap();
     // bright, open-air areas need the danger zones painted dark instead of lit
     Telegraph.bright = this.level.theme === 'sky' || this.level.theme === 'desert';
     this.mapW = this.level.cols * TILE;
     this.mapH = this.level.rows * TILE;
-    useGameStore.setState({ boss: null, dead: false, restOpen: false, prompt: null, paused: false, dialogue: null, shop: null, ending: false });
+    useGameStore.setState({ boss: null, dead: false, restOpen: false, prompt: null, paused: false, dialogue: null, shop: null, ending: false, well: false, shrine: null, mapOpen: false });
 
     this.createBackground();
 
@@ -305,13 +369,16 @@ export class GameScene extends Phaser.Scene {
     for (const b of this.level.bonfires) this.bonfires.push(new Bonfire(this, b.id, b.x, b.y, this.world.lit.includes(b.id)));
     for (const d of this.level.doors) this.doors.push(new Door(this, d));
     for (const n of this.level.npcs) this.npcs.push(new Npc(this, n.id, n.x, n.y));
+    this.createChests();
+    this.createShrines();
+    this.stockWanderer();
     this.refreshDoors();
 
     const sp = this.spawnPoint();
     this.at = undefined;
     this.player = new Player(this, sp.x, sp.y);
     const carry = this.registry.get('carry') as { hp: number; stamina: number } | undefined;
-    if (carry && this.entry) {
+    if (carry && this.entry !== undefined) {
       this.player.hp = carry.hp;
       this.player.stamina = carry.stamina;
     }
@@ -345,8 +412,9 @@ export class GameScene extends Phaser.Scene {
     this.bindUi();
 
     sfx.playMusic(this.areaTrack());
-    if (this.entry) useGameStore.getState().showBanner(this.level.name.toUpperCase(), 'white');
-    else if (!this.world.lit.length) useGameStore.getState().showBanner(this.level.name.toUpperCase(), 'white', 'Rest at the bonfire');
+    const f = this.floor;
+    if (f) useGameStore.getState().showBanner(f.boss ? `DEPTH ${f.depth} \u00b7 GUARDIAN` : `DEPTH ${f.depth}`, f.boss ? 'red' : 'white', f.title);
+    else useGameStore.getState().showBanner(this.level.name.toUpperCase(), 'white', this.world.lit.includes(CAMP_FIRE) ? 'The well waits' : 'Rest at the bonfire');
   }
 
   /** Commands from React (pause, menus, dialogue). Cleaned up on restart and on game destroy. */
@@ -375,6 +443,13 @@ export class GameScene extends Phaser.Scene {
         saveGame(this.world);
       },
       'ui:save': () => saveGame(this.world),
+      'ui:well-descend': (depth: number) => {
+        useGameStore.setState({ well: false });
+        if (!useRunStore.getState().meta.waystones.includes(depth) || this.travelling) return;
+        this.newRun(depth);
+        this.travel(DEEP_AREA, '', depth);
+      },
+      'ui:shrine-pick': (id: string, boon: string) => this.pickBoon(id, boon),
       'ui:quit': () => {
         saveGame(this.world);
         this.registry.remove('world');
@@ -583,13 +658,203 @@ export class GameScene extends Phaser.Scene {
       p.glow.destroy();
       return false;
     });
-    this.enemies = this.level.enemies.map((e) => makeEnemy(this, e.type, e.x, e.y));
+    this.enemies = this.level.enemies.map((e) => {
+      const en = makeEnemy(this, e.type, e.x, e.y);
+      if (this.floor) this.empower(en, e.elite ?? null);
+      return en;
+    });
     // in the finale the old foes return as ash: grey, a glow of embers in them
     if (ASH_THEMES.has(this.level.theme))
       for (const e of this.enemies) {
+        if (e.elite) continue;
         e.baseTint = 0xb4a8a4;
         e.sprite.setTint(0xb4a8a4);
       }
+  }
+
+  /** the Deep: tougher the further down, and some foes are elites (see dungeon/generate ELITES) */
+  private empower(e: Enemy, elite: string | null) {
+    const hpK = hpScale(this.depth) * (elite === 'hulking' ? 3 : elite ? 2 : 1);
+    e.cfg = {
+      ...e.cfg,
+      hp: Math.round(e.cfg.hp * hpK),
+      souls: Math.round(e.cfg.souls * soulScale(this.depth) * (elite ? 3 : 1)),
+      poise: Math.round(e.cfg.poise * (elite === 'hulking' ? 2.5 : elite ? 1.5 : 1)),
+      knockMul: e.cfg.knockMul * (elite === 'hulking' ? 0.4 : 1),
+    };
+    e.hp = e.cfg.hp;
+    e.poise = e.cfg.poise;
+    if (!elite) return;
+    e.elite = elite;
+    e.dmgMul = elite === 'frenzied' ? 1.35 : 1.15;
+    if (elite === 'frenzied') e.speedMul = 1.3;
+    if (elite === 'frostbound') e.eliteStatus = { type: 'cold', amount: 30 };
+    if (elite === 'venomous') e.eliteStatus = { type: 'poison', amount: 30 };
+    e.baseTint = ELITE_TINT[elite] ?? 0xffffff;
+    e.sprite.setTint(e.baseTint);
+  }
+
+  // ------------------------------------------------------------------ the Deep: chests, shrines, merchants, map
+  private createChests() {
+    for (const def of this.floor?.chests ?? []) {
+      const open = !!this.world.flags[`run:chest:${this.depth}:${def.id}`];
+      const frame = `${def.tier >= 1 ? 'gold-' : ''}${open ? 'open' : 'closed'}`;
+      const sprite = this.add.sprite(def.x, def.y, 'chest', frame).setOrigin(0.5, 1).setDepth(DEPTH.ITEMS);
+      this.chests.push({ def, sprite, open });
+    }
+  }
+
+  private openChest(c: { def: ChestDef; sprite: Phaser.GameObjects.Sprite; open: boolean }) {
+    const f = this.floor!;
+    c.open = true;
+    this.world.flags[`run:chest:${this.depth}:${c.def.id}`] = true;
+    c.sprite.setFrame(c.def.tier >= 1 ? 'gold-open' : 'open');
+    sfx.door();
+    this.fx.ember(c.def.x, c.def.y - 8, c.def.tier >= 1 ? 26 : 12);
+    const label = `${f.seed}:${c.def.id}`;
+    const loot = rollChest(new Rng(hashSeed(label)), this.depth, label, c.def.tier);
+    loot.forEach((r, i) => {
+      const x = c.def.x + (i - (loot.length - 1) / 2) * 14;
+      this.time.delayedCall(120 + i * 140, () => this.spawnPickup(x, c.def.y, r.id, r.qty));
+    });
+    saveGame(this.world);
+  }
+
+  private createShrines() {
+    for (const def of this.floor?.shrines ?? []) {
+      const used = !!this.world.flags[`run:shrine:${this.depth}:${def.id}`];
+      const sprite = this.add.sprite(def.x, def.y, 'shrine', used ? 'used' : 'idle').setOrigin(0.5, 1).setDepth(DEPTH.DECOR + 2);
+      this.shrines.push({ def, sprite, used });
+    }
+  }
+
+  private kneelAt(s: { def: ShrineDef; sprite: Phaser.GameObjects.Sprite; used: boolean }) {
+    const run = useRunStore.getState().run;
+    if (!run) return;
+    const owned = new Set(run.buffs.map((b) => b.id));
+    const rng = new Rng(hashSeed(`${this.floor!.seed}:${s.def.id}:boon`));
+    const options = rng.shuffle(BOONS.filter((b) => !owned.has(b.id))).slice(0, 2);
+    if (!options.length) {
+      useGameStore.getState().showToast('The shrine has nothing left to give you');
+      return;
+    }
+    this.player.body.setVelocityX(0);
+    sfx.bonfire();
+    useGameStore.setState({ shrine: { id: s.def.id, options }, prompt: null });
+  }
+
+  private pickBoon(id: string, boonId: string) {
+    useGameStore.setState({ shrine: null });
+    const s = this.shrines.find((x) => x.def.id === id);
+    const run = useRunStore.getState().run;
+    const boon = BOONS.find((b) => b.id === boonId);
+    if (!s || s.used || !run || !boon) return;
+    s.used = true;
+    s.sprite.setFrame('used');
+    this.world.flags[`run:shrine:${this.depth}:${id}`] = true;
+    useRunStore.setState({ run: { ...run, buffs: [...run.buffs, boon] } });
+    useGameStore.getState().showBanner(boon.name.toUpperCase(), 'gold', boon.desc);
+    sfx.levelUp();
+    this.fx.heal(this.player.x, this.player.y);
+    saveGame(this.world);
+  }
+
+  /** a wandering peddler's stock, rolled once per floor */
+  private stockWanderer() {
+    const f = this.floor;
+    const run = useRunStore.getState().run;
+    if (!f || !run || !this.level.npcs.some((n) => n.id === 'wanderer')) return;
+    const key = `f${this.depth}`;
+    if (run.shops[key]) return;
+    const rng = new Rng(hashSeed(`${f.seed}:shop`));
+    const stock: ShopItem[] = [];
+    for (let i = 0; i < 2; i++) {
+      const g = rollGear(rng, this.depth + 1, `${f.seed}:shop${i}`, { tier: 1 });
+      stock.push({ item: g.id, price: Math.round((ITEMS[g.id].value ?? 250 + this.depth * 40) * 3) });
+    }
+    stock.push({ item: 'bread', price: 70 }, { item: 'ember_herb', price: 160 }, { item: 'return_ember', price: 650 }, { item: 'titanite', price: 520 });
+    useRunStore.setState({ run: { ...run, shops: { ...run.shops, [key]: stock } } });
+  }
+
+  private publishMap() {
+    const f = this.floor;
+    if (!f) {
+      useRunStore.setState({ map: null });
+      return;
+    }
+    const prev = useRunStore.getState().map;
+    const explored = prev && prev.depth === f.depth ? prev.explored : [];
+    useRunStore.setState({ map: { depth: f.depth, title: f.title, boss: f.boss, gw: f.gw, gh: f.gh, rooms: f.rooms, explored, here: '' } });
+  }
+
+  /** which room you are in, for the map */
+  private trackCell() {
+    const f = this.floor;
+    if (!f || !this.player.alive) return;
+    const gx = Phaser.Math.Clamp(Math.floor(this.player.x / (f.cellW * TILE)), 0, f.gw - 1);
+    const gy = Phaser.Math.Clamp(Math.floor((this.player.feetY - 8) / (f.cellH * TILE)), 0, f.gh - 1);
+    const k = `${gx},${gy}`;
+    if (k === this.cell) return;
+    this.cell = k;
+    const m = useRunStore.getState().map;
+    if (!m) return;
+    useRunStore.setState({ map: { ...m, here: k, explored: m.explored.includes(k) ? m.explored : [...m.explored, k] } });
+  }
+
+  private descend() {
+    const run = useRunStore.getState().run;
+    if (!run || this.travelling) return;
+    const depth = this.depth + 1;
+    useRunStore.setState({ run: { ...run, depth } });
+    this.travel(DEEP_AREA, '', depth);
+  }
+
+  /** the Ember of Return works only down there, while you live */
+  canReturnHome() {
+    return !!this.floor && !!useRunStore.getState().run && this.player.alive && !this.travelling;
+  }
+
+  /** home with your spoils: everything you carry is yours to keep */
+  returnHome(how: 'door' | 'ember') {
+    const run = useRunStore.getState().run;
+    if (!run || this.travelling) return;
+    useRunStore.setState({
+      run: null,
+      summary: { kind: 'returned', depth: this.depth, kills: run.kills, items: snapshot(Object.entries(run.atRisk)), souls: usePlayerStore.getState().souls },
+    });
+    clearRunWorld(this.world);
+    this.world.lastBonfire = CAMP_FIRE;
+    this.world.lastArea = START_AREA;
+    if (!this.world.lit.includes(CAMP_FIRE)) this.world.lit.push(CAMP_FIRE);
+    if (how === 'ember') this.fx.ember(this.player.x, this.player.y, 40);
+    this.travel(START_AREA, '');
+  }
+
+  /** died down there: the Deep takes back what you found, your souls stay where you fell */
+  private loseRun(souls: number) {
+    const rs = useRunStore.getState();
+    const run = rs.run;
+    const inv = useInventoryStore.getState();
+    const lost: [string, number][] = [];
+    for (const [id, n] of Object.entries(run?.atRisk ?? {})) {
+      const take = Math.min(inv.items[id] ?? 0, n);
+      if (take > 0 && useInventoryStore.getState().remove(id, take)) lost.push([id, take]);
+    }
+    const left = useInventoryStore.getState().items;
+    const eq = { ...useInventoryStore.getState().equipped };
+    for (const k of ['weapon', 'shield', 'armor', 'quick'] as const) {
+      const id = eq[k];
+      if (id && !left[id]) eq[k] = null;
+    }
+    useInventoryStore.setState({ equipped: eq });
+    useRunStore.setState({
+      run: null,
+      meta: { ...rs.meta, deaths: rs.meta.deaths + 1, stain: souls > 0 ? { depth: this.depth, souls } : null },
+      summary: { kind: 'died', depth: this.depth, kills: run?.kills ?? 0, items: snapshot(lost), souls },
+    });
+    clearRunWorld(this.world);
+    this.world.lastBonfire = CAMP_FIRE;
+    this.world.lastArea = START_AREA;
   }
 
   private createPickups() {
@@ -635,6 +900,9 @@ export class GameScene extends Phaser.Scene {
     }
     for (const p of this.projectiles) if (p.kind === 'shard' || p.kind === 'toxglob') out.push({ x: p.sprite.x, y: p.sprite.y, r: 20 });
     for (const g of this.gas) out.push({ x: g.rect.centerX, y: g.rect.centerY, r: 26 });
+    for (const c of this.chests) if (!c.open) out.push({ x: c.def.x, y: c.def.y - 6, r: c.def.tier >= 1 ? 34 : 22, flicker: 0.05 });
+    for (const s of this.shrines) if (!s.used) out.push({ x: s.def.x, y: s.def.y - 16, r: 40, flicker: 0.06 });
+    for (const e of this.enemies) if (e.alive && e.elite) out.push({ x: e.x, y: e.y, r: 26, flicker: 0.1 });
     for (const s of this.sunk) if (s.c % 2 === 0) out.push({ x: s.c * TILE + 8, y: s.surf.y, r: 58, flicker: 0.1 });
     const bl = this.player?.bladeLight();
     if (bl) out.push(bl);
@@ -1206,12 +1474,14 @@ export class GameScene extends Phaser.Scene {
 
   /** Item on the ground: its atlas sprite (or a soul wisp) over a pulsing glow. */
   spawnPickup(x: number, y: number, item: string, qty: number, id: string | null = null) {
-    const gear = ITEMS[item]?.kind === 'weapon' || ITEMS[item]?.kind === 'armor';
+    const def = ITEMS[item];
+    const gear = def?.kind === 'weapon' || def?.kind === 'armor' || def?.kind === 'shield';
     const glow = this.add.image(x, y - 6, 'glow-soul').setBlendMode('ADD').setDepth(DEPTH.ITEMS);
-    const tex = this.textures.exists(`item:${item}`) ? `item:${item}` : 'wisp';
+    const look = lookId(def) ?? item;
+    const tex = this.textures.exists(`item:${look}`) ? `item:${look}` : 'wisp';
     const sprite = this.add.image(x, y - 6, tex).setDepth(DEPTH.ITEMS + 1);
     if (tex === 'wisp') sprite.setBlendMode('ADD');
-    if (gear) glow.setTint(0xffd080).setScale(1.3);
+    if (gear) glow.setTint(def?.rarity ? parseInt(RARITY_COLOR[def.rarity].slice(1), 16) : 0xffd080).setScale(def?.rarity === 'relic' ? 1.7 : 1.3);
     this.pickups.push({ id, item, qty, sprite, glow, baseY: y - 6 });
   }
 
@@ -1224,6 +1494,11 @@ export class GameScene extends Phaser.Scene {
     this.gateCollider.active = false;
     if (this.hasFlag(b.flag)) return;
     this.boss = makeBoss(this, b.type, b.x, b.y);
+    if (this.floor) {
+      const boss = this.boss;
+      boss.cfg = { ...boss.cfg, hp: Math.round(boss.cfg.hp * hpScale(this.depth) * 0.85), souls: Math.round(boss.cfg.souls * soulScale(this.depth)) };
+      boss.hp = boss.cfg.hp;
+    }
     this.fog = this.add.tileSprite(b.fogX, b.y, 20, 112, 'fogwall').setOrigin(0.5, 1).setDepth(DEPTH.FG).setAlpha(0.6);
   }
 
@@ -1232,6 +1507,15 @@ export class GameScene extends Phaser.Scene {
       this.stain.sprite.destroy();
       this.stain.glow.destroy();
       this.stain = null;
+    }
+    if (this.floor) {
+      const st = useRunStore.getState().meta.stain;
+      if (!st || st.depth !== this.depth) return;
+      const { x, y } = this.floor.stainSpot;
+      const glow = this.add.image(x, y - 4, 'glow-soul').setBlendMode('ADD').setTint(0x60ff90).setDepth(DEPTH.ITEMS);
+      const sprite = this.add.image(x, y - 4, 'stain').setDepth(DEPTH.ITEMS + 1);
+      this.stain = { sprite, glow, souls: st.souls };
+      return;
     }
     const s = this.world.bloodstain;
     if (!s || s.area !== this.area) return;
@@ -1272,6 +1556,13 @@ export class GameScene extends Phaser.Scene {
       sfx.locked();
       return;
     }
+    if (d.def.to === '__descend') return this.descend();
+    if (d.def.to === '__camp') return this.returnHome('door');
+    if (d.def.to === '__well') {
+      this.player.body.setVelocityX(0);
+      useGameStore.setState({ well: true, prompt: null });
+      return;
+    }
     if (d.def.sets && !this.world.flags[d.def.sets]) {
       this.world.flags[d.def.sets] = true;
       useGameStore.getState().showToast('A shortcut has been opened');
@@ -1280,7 +1571,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Fade out and rebuild the scene in another area, keeping hp/stamina. */
-  private travel(area: string, entry: string) {
+  private travel(area: string, entry: string, depth?: number) {
     if (this.travelling) return;
     this.travelling = true;
     sfx.door();
@@ -1288,7 +1579,7 @@ export class GameScene extends Phaser.Scene {
     this.registry.set('carry', { hp: this.player.hp, stamina: this.player.stamina });
     this.player.body.setVelocity(0, 0);
     this.cameras.main.fadeOut(350);
-    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.restart({ area, entry }));
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.restart({ area, entry, depth }));
   }
 
   // ------------------------------------------------------------------ dialogue (driven by React)
@@ -1544,7 +1835,16 @@ export class GameScene extends Phaser.Scene {
 
   // ------------------------------------------------------------------ events from entities
   onEnemyKilled(e: Enemy) {
-    const souls = e.cfg.souls;
+    const souls = Math.round(e.cfg.souls * equipStats().soulGain);
+    if (this.floor && !e.summoned && e !== this.boss) {
+      const run = useRunStore.getState().run;
+      if (run) useRunStore.setState({ run: { ...run, kills: run.kills + 1 } });
+      if (e.elite) {
+        const label = `${this.floor.seed}:elite:${Math.random()}`;
+        const r = rollEliteDrop(new Rng(hashSeed(label)), this.depth, label);
+        this.spawnPickup(e.x, e.body.bottom, r.id, r.qty);
+      }
+    }
     this.fx.soulsTo(
       e.x,
       e.y,
@@ -1563,7 +1863,8 @@ export class GameScene extends Phaser.Scene {
 
   onPlayerDeath() {
     const souls = usePlayerStore.getState().souls;
-    this.world.bloodstain = souls > 0 ? { area: this.area, x: this.player.lastSafe.x, y: this.player.lastSafe.y, souls } : null;
+    if (this.floor) this.loseRun(souls);
+    else this.world.bloodstain = souls > 0 ? { area: this.area, x: this.player.lastSafe.x, y: this.player.lastSafe.y, souls } : null;
     usePlayerStore.setState({ souls: 0 });
     if (this.stain) {
       this.stain.sprite.destroy();
@@ -1740,8 +2041,10 @@ export class GameScene extends Phaser.Scene {
     this.player.rest();
     this.player.heal();
     usePlayerStore.setState((s) => ({ flasks: s.maxFlasks }));
-    this.world.lastBonfire = b.id;
-    this.world.lastArea = this.area;
+    if (!this.floor) {
+      this.world.lastBonfire = b.id;
+      this.world.lastArea = this.area;
+    }
     this.entry = undefined;
     this.spawnEnemies();
     this.resetBoss();
@@ -1772,8 +2075,18 @@ export class GameScene extends Phaser.Scene {
       useGameStore.setState({ boss: null });
       saveGame(this.world);
     });
-    // the last boss of the pre-release: once the banner has had its moment, the ending card
-    if (arena.flag === 'kingDefeated') this.time.delayedCall(5200, () => this.player.alive && useGameStore.setState({ ending: true }));
+    if (this.floor) {
+      // the guardian's hoard, and a waystone wakes at the camp's well
+      const rs = useRunStore.getState();
+      const next = waystoneDepth(this.depth);
+      const ws = rs.meta.waystones.includes(next) ? rs.meta.waystones : [...rs.meta.waystones, next].sort((a, b) => a - b);
+      useRunStore.setState({ meta: { ...rs.meta, waystones: ws, bossesFelled: rs.meta.bossesFelled + 1 } });
+      const label = `${this.floor.seed}:hoard`;
+      const hoard = rollBossDrop(new Rng(hashSeed(label)), this.depth, arena.type, label);
+      const bx = Phaser.Math.Clamp(this.boss?.x ?? arena.x, arena.fogX + 60, this.mapW - 120);
+      hoard.forEach((r, i) => this.time.delayedCall(1400 + i * 260, () => this.spawnPickup(bx + (i - 1) * 16, arena.y, r.id, r.qty)));
+      this.time.delayedCall(3400, () => useGameStore.getState().showToast(`A waystone wakes at the well: depth ${next}`));
+    }
   }
 
   // ------------------------------------------------------------------ debug menu (?debug) – see components/Debug
@@ -1783,6 +2096,18 @@ export class GameScene extends Phaser.Scene {
     this.registry.set('carry', { hp: this.player.hp, stamina: this.player.stamina });
     resetTouchInput();
     this.scene.restart({ area, at });
+  }
+
+  /** start a fresh descent at a depth */
+  debugDeep(depth: number, seed?: number) {
+    if (this.travelling) return;
+    resetTouchInput();
+    this.newRun(depth, seed);
+    this.travel(DEEP_AREA, '', depth);
+  }
+
+  debugDescend() {
+    if (this.floor) this.descend();
   }
 
   debugHeal() {
@@ -1846,7 +2171,16 @@ export class GameScene extends Phaser.Scene {
 
     this.updateMovers(dt);
     this.player.update(dt, this.controls);
-    for (const e of this.enemies) e.update(dt);
+    const view = this.cameras.main.worldView;
+    for (const e of this.enemies) {
+      // the Deep is big: foes far off screen sleep until you come near
+      if (this.floor && e.alive && !e.summoned && (e.x < view.x - 260 || e.x > view.right + 260 || e.y < view.y - 200 || e.y > view.bottom + 200)) {
+        e.body.velocity.x = 0;
+        continue;
+      }
+      e.update(dt);
+      if (e.elite && e.alive && Math.random() < 5 * dt) this.fx.status(e.x + Phaser.Math.Between(-6, 6), e.y - 4, ELITE_MOTE[e.elite] ?? 'fire', 1);
+    }
     this.boss?.update(dt);
     this.updateProjectiles(dt);
     this.updateLava(dt);
@@ -1862,6 +2196,7 @@ export class GameScene extends Phaser.Scene {
     this.checkInteract();
     this.checkPickups();
     this.checkBossTrigger();
+    this.trackCell();
     this.updateCamera(dt);
     this.lighting.update(dt, this.dynamicLights());
     this.drawDebug();
@@ -2042,18 +2377,27 @@ export class GameScene extends Phaser.Scene {
     if (p.state === 'move' && p.onGround && !this.travelling && !this.talkingTo) {
       const near = (x: number, y: number, r: number) => Math.abs(x - p.x) < r && Math.abs(y - p.feetY) < 20;
       const b = this.bonfires.find((b) => near(b.x, b.y, 22));
-      const n = !b && this.npcs.find((n) => near(n.x, n.y, 26));
-      const d = !b && !n && this.doors.find((d) => near(d.def.x, d.def.y, 16));
+      const ch = !b && this.chests.find((c) => !c.open && near(c.def.x, c.def.y, 18));
+      const sh = !b && !ch && this.shrines.find((s) => !s.used && near(s.def.x, s.def.y, 20));
+      const n = !b && !ch && !sh && this.npcs.find((n) => near(n.x, n.y, 26));
+      const d = !b && !ch && !sh && !n && this.doors.find((d) => near(d.def.x, d.def.y, 16));
       const pressed = this.controls.pressed('interact');
       if (b) {
         prompt = b.lit ? 'Rest at bonfire' : 'Light bonfire';
         if (pressed) this.restAt(b);
+      } else if (ch) {
+        prompt = 'Open chest';
+        if (pressed) this.openChest(ch);
+      } else if (sh) {
+        prompt = 'Kneel at the shrine';
+        if (pressed) this.kneelAt(sh);
       } else if (n) {
         prompt = `Talk to ${n.def.name.split(',')[0]}`;
         if (pressed) this.talkTo(n);
       } else if (d) {
         const open = !d.def.requires || this.hasFlag(d.def.requires);
-        prompt = open ? 'Enter' : 'Examine door';
+        const to = d.def.to;
+        prompt = !open ? 'Examine door' : to === '__descend' ? 'Descend' : to === '__camp' ? 'Return to camp' : to === '__well' ? 'Look into the well' : 'Enter';
         if (pressed) this.useDoor(d);
       }
       if (pressed) prompt = null;
@@ -2075,6 +2419,7 @@ export class GameScene extends Phaser.Scene {
       it.glow.destroy();
       if (it.id) this.world.items.push(it.id);
       useInventoryStore.getState().add(it.item, it.qty);
+      if (this.floor) markAtRisk(it.item, it.qty);
       const def = ITEMS[it.item];
       useGameStore.getState().showToast(`${def?.name ?? it.item}${it.qty > 1 ? ` ×${it.qty}` : ''}`);
       sfx.pickup();
@@ -2092,6 +2437,7 @@ export class GameScene extends Phaser.Scene {
         this.stain.glow.destroy();
         this.stain = null;
         this.world.bloodstain = null;
+        if (this.floor) useRunStore.setState((st) => ({ meta: { ...st.meta, stain: null } }));
         saveGame(this.world);
       }
     }

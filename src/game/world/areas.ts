@@ -1,31 +1,10 @@
 import type { LevelData } from './builder';
-import { buildLevel1 } from './level1';
-import { buildCatacombs } from './catacombs';
-import { buildOssuary } from './ossuary';
-import { buildDepths } from './depths';
-import { buildCloister } from './cloister';
-import { buildMire } from './mire';
-import { buildNecropolis } from './necropolis';
-import { buildWastes } from './wastes';
-import { buildSky } from './sky';
-import { buildShrine } from './shrine';
-import { buildAshRoad } from './ashroad';
-import { buildThrone } from './throne';
+import { buildCamp } from './camp';
 
-/** Every area of the interconnected world, by id. Doors reference these ids. */
+/** Hand-made areas by id. Dungeon floors (area 'deep') are generated – see dungeon/generate.ts. */
 export const AREAS: Record<string, () => LevelData> = {
-  hollow: buildLevel1,
-  catacombs: buildCatacombs,
-  ossuary: buildOssuary,
-  depths: buildDepths,
-  cloister: buildCloister,
-  mire: buildMire,
-  necropolis: buildNecropolis,
-  wastes: buildWastes,
-  sky: buildSky,
-  shrine: buildShrine,
-  ashroad: buildAshRoad,
-  throne: buildThrone,
+  camp: buildCamp,
 };
 
-export const START_AREA = 'hollow';
+export const START_AREA = 'camp';
+export const DEEP_AREA = 'deep';

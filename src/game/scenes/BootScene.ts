@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { buildEnvironment } from '../gfx/environment';
 import { preloadSprites } from '../gfx/sprites';
+import { buildDungeonArt } from '../gfx/dungeon';
 
 /** Loads baked character atlases + atlas item/prop sprites, generates environment art, then starts the game. */
 export class BootScene extends Phaser.Scene {
@@ -14,6 +15,7 @@ export class BootScene extends Phaser.Scene {
 
   create() {
     buildEnvironment(this);
+    buildDungeonArt(this);
     this.scene.start('Title');
   }
 }

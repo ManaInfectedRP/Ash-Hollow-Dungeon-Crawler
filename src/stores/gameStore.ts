@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { Buff } from './runStore';
 
 export type BannerTone = 'gold' | 'red' | 'white';
 export interface Banner {
@@ -27,8 +28,14 @@ export interface GameStore {
   shake: boolean;
   /** 'boot' while assets load, 'title' while the main menu is up */
   menu: 'boot' | 'title' | null;
-  /** the pre-release ending card (after the Ashen King falls) */
+  /** the pre-release ending card (unused in the Deep) */
   ending: boolean;
+  /** the well's waystone menu is open */
+  well: boolean;
+  /** a shrine offering its boons */
+  shrine: { id: string; options: Buff[] } | null;
+  /** the full map is open */
+  mapOpen: boolean;
   showBanner: (text: string, tone?: BannerTone, sub?: string) => void;
   showToast: (text: string) => void;
 }
@@ -61,6 +68,9 @@ export const useGameStore = create<GameStore>((set) => ({
   shake: saved.shake ?? true,
   menu: 'boot',
   ending: false,
+  well: false,
+  shrine: null,
+  mapOpen: false,
   showBanner: (text, tone = 'gold', sub) => set({ banner: { text, tone, sub, id: seq++ } }),
   showToast: (text) => set({ toast: { text, id: seq++ } }),
 }));

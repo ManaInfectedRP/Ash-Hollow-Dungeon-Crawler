@@ -63,7 +63,7 @@ export function MainMenu() {
     <div className="title-wrap">
       <div className="title-block">
         <h1 className="title-name">Ash &amp; Hollow</h1>
-        <div className="title-sub">rest, and rise again</div>
+        <div className="title-sub">the Deep</div>
         {__CHANNEL__ === 'dev' && <div className="title-channel">Dev build – testing only</div>}
       </div>
       <div className="title-menu">
@@ -78,7 +78,7 @@ export function MainMenu() {
         )}
         {view === 'confirm' && (
           <>
-            <p className="title-warn">Erase your progress and begin anew? This cannot be undone.</p>
+            <p className="title-warn">Erase your character, your spoils and every waystone, and begin anew? This cannot be undone.</p>
             <button className="danger" onClick={() => start(true)}>
               Yes, start over
             </button>

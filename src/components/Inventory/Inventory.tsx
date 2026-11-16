@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { EventBus } from '../../game/EventBus';
-import { ITEMS, type ItemDef, type ItemKind } from '../../game/data/items';
+import { ITEMS, lookId, type ItemDef, type ItemKind } from '../../game/data/items';
+import { RARITY_COLOR } from '../../game/dungeon/loot';
+import { buffMods, useRunStore } from '../../stores/runStore';
 import { iconUrl } from '../../game/gfx/icons';
 import { itemSpriteUrl } from '../../game/gfx/sprites';
 import { WEAPONS } from '../../game/systems/attacks';
@@ -21,8 +23,9 @@ const TABS: { kind: ItemKind; label: string }[] = [
 export function ItemIcon({ def, size = 32 }: { def: ItemDef | null; size?: number }) {
   if (!def) return <div className="icon empty" style={{ width: size, height: size }} />;
   // Pixel Art Atlas sprite when we have one, otherwise the generated fallback icon
-  const src = itemSpriteUrl(def.id) ?? iconUrl(def.icon);
-  return <img className="icon" src={src} width={size} height={size} alt={def.name} draggable={false} />;
+  const src = itemSpriteUrl(lookId(def)!) ?? iconUrl(def.icon);
+  const glow = def.rarity && def.rarity !== 'common' ? { filter: `drop-shadow(0 0 2px ${RARITY_COLOR[def.rarity]})` } : undefined;
+  return <img className="icon" src={src} width={size} height={size} alt={def.name} draggable={false} style={glow} />;
 }
 
 function Slot({ label, id, onClick }: { label: string; id: string | null; onClick: () => void }) {
@@ -34,7 +37,7 @@ function Slot({ label, id, onClick }: { label: string; id: string | null; onClic
       <ItemIcon def={def} size={36} />
       <div className="eq-text">
         <span className="eq-label">{label}</span>
-        <span className="eq-name">
+        <span className="eq-name" style={{ color: def?.rarity ? RARITY_COLOR[def.rarity] : undefined }}>
           {def ? def.name : '—'}
           {upg ? ` +${upg}` : ''}
           {def?.kind === 'consumable' ? ` ×${qty ?? 0}` : ''}
@@ -65,9 +68,12 @@ export function Inventory() {
   const level = usePlayerStore((s) => s.level);
   const [tab, setTab] = useState<ItemKind>('weapon');
   const [sel, setSel] = useState<string | null>(null);
+  const atRisk = useRunStore((s) => s.run?.atRisk);
+  useRunStore((s) => s.run?.buffs);
   if (!open) return null;
 
-  const eq = computeEquip(stats, equipped, upgrades);
+  const buffs = buffMods();
+  const eq = computeEquip(stats, equipped, upgrades, buffs);
   const list = Object.entries(items).filter(([id]) => ITEMS[id]?.kind === tab);
   const def = sel && items[sel] ? ITEMS[sel] : null;
   const close = () => useGameStore.setState({ invOpen: false });
@@ -80,7 +86,7 @@ export function Inventory() {
   let preview: { label: string; from: string; to: string }[] = [];
   if (def && (def.kind === 'weapon' || def.kind === 'armor' || def.kind === 'shield')) {
     const next: Equipped = { ...equipped, [def.kind]: def.id };
-    const after = computeEquip(stats, next, upgrades);
+    const after = computeEquip(stats, next, upgrades, buffs);
     preview =
       def.kind === 'shield'
         ? [
@@ -94,6 +100,7 @@ export function Inventory() {
             { label: 'Attack', from: String(eq.ar), to: String(after.ar) },
             { label: 'Grip', from: gripName(eq.hands), to: gripName(after.hands) },
             { label: 'Element', from: eq.element?.type ?? '—', to: after.element?.type ?? '—' },
+            { label: 'Heal / hit', from: String(eq.lifeOnHit), to: String(after.lifeOnHit) },
             { label: 'Block', from: eq.shield ? pct(eq.shield.absorb) : '—', to: after.shield ? pct(after.shield.absorb) : '—' },
             { label: 'Load', from: `${eq.load}/${eq.maxLoad}`, to: `${after.load}/${after.maxLoad}` },
             { label: 'Roll', from: eq.roll, to: after.roll },
@@ -134,6 +141,18 @@ export function Inventory() {
           <Slot label="Armor" id={equipped.armor} onClick={() => jumpTo('armor', equipped.armor)} />
           <Slot label="Quick item" id={equipped.quick} onClick={() => jumpTo('consumable', equipped.quick)} />
           <dl className="inv-stats">
+            {eq.lifeOnHit > 0 && (
+              <>
+                <dt>Heal per hit</dt>
+                <dd>{eq.lifeOnHit}</dd>
+              </>
+            )}
+            {eq.soulGain !== 1 && (
+              <>
+                <dt>Souls from kills</dt>
+                <dd>{Math.round(eq.soulGain * 100)}%</dd>
+              </>
+            )}
             <dt>Level</dt>
             <dd>{level}</dd>
             <dt>HP / Stamina</dt>
@@ -170,6 +189,8 @@ export function Inventory() {
                 <ItemIcon def={ITEMS[id]} />
                 {qty > 1 && <span className="qty">{qty}</span>}
                 {isEquipped(id) && <span className="eq-mark">E</span>}
+                {atRisk?.[id] ? <span className="risk-mark" title="Found in the Deep – lost if you die before you bring it home">!</span> : null}
+                {ITEMS[id]?.rarity && ITEMS[id].rarity !== 'common' ? <i className="rarity-bar" style={{ background: RARITY_COLOR[ITEMS[id].rarity!] }} /> : null}
                 {upgrades[id] ? <span className="upg">+{upgrades[id]}</span> : null}
               </button>
             ))}
@@ -182,14 +203,24 @@ export function Inventory() {
               <div className="detail-head">
                 <ItemIcon def={def} size={40} />
                 <div>
-                  <div className="detail-name">
+                  <div className="detail-name" style={{ color: def.rarity ? RARITY_COLOR[def.rarity] : undefined }}>
                     {def.name}
                     {upgrades[def.id] ? ` +${upgrades[def.id]}` : ''}
                   </div>
                   <div className="detail-kind">{kindLine(def)}</div>
                 </div>
               </div>
+              {def.affixLines?.length ? (
+                <ul className="affixes">
+                  {def.affixLines.map((l) => (
+                    <li key={l} className={l.startsWith('Cursed') ? 'curse' : ''}>
+                      {l}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               <p className="detail-desc">{def.desc}</p>
+              {atRisk?.[def.id] ? <p className="detail-desc warn">Found in the Deep – lost if you die before you bring it home.</p> : null}
               {preview.length > 0 && (
                 <table className="preview">
                   <tbody>

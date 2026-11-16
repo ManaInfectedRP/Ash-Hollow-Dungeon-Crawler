@@ -3,6 +3,7 @@ import { useGameStore } from '../../stores/gameStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { ITEMS } from '../../game/data/items';
 import { ItemIcon } from '../Inventory/Inventory';
+import { Minimap } from '../Deep/Deep';
 
 function Bar({ value, max, width, kind }: { value: number; max: number; width: number; kind: string }) {
   const pct = `${Math.max(0, Math.min(1, value / max)) * 100}%`;
@@ -29,6 +30,7 @@ export function HUD() {
   const quickQty = useInventoryStore((s) => (s.equipped.quick ? s.items[s.equipped.quick] ?? 0 : 0));
   const weapon = useInventoryStore((s) => s.equipped.weapon);
   const menu = useGameStore((s) => s.menu);
+  const busy = useGameStore((s) => s.well || !!s.shrine || s.mapOpen);
   const maxHp = maxHpFor(stats);
   const maxSt = maxStaminaFor(stats);
 
@@ -68,13 +70,14 @@ export function HUD() {
         <span className="souls-icon" />
         {souls.toLocaleString('sv-SE')}
       </div>
+      <Minimap />
       {boss && (
         <div className="boss">
           <div className="boss-name">{boss.name}</div>
           <Bar value={boss.hp} max={boss.maxHp} width={0} kind="boss" />
         </div>
       )}
-      {prompt && (
+      {prompt && !busy && (
         <div className="prompt">
           {!showTouch && <kbd>E</kbd>} {prompt}
         </div>

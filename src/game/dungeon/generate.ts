@@ -440,7 +440,7 @@ function buildFloor(seed: number, depth: number, band: BandDef): FloorResult {
         break;
       }
       default:
-        spawnEnemies(crng.int(1, depth > 4 ? 3 : 2), false);
+        spawnEnemies(crng.int(2, depth > 4 ? 4 : 3), false);
         if (crng.chance(0.3)) {
           // on the floor itself: ledges may have lost their way up to a doorway cut
           const low = usable.filter((p) => p.row === oy + FLOOR);
@@ -525,7 +525,7 @@ function buildBossFloor(seed: number, depth: number, band: BandDef): FloorResult
   if (band.theme === 'keep' || band.theme === 'tomb') b.fill(48, F, BOSS_COLS - 3, F, 's');
   b.data.spawn = b.at(5, F);
   b.data.bonfires.push({ id: `f${depth}-boss-fire`, ...b.at(34, F) });
-  const flag = `boss${depth}`;
+  const flag = `run:boss${depth}`;
   b.data.boss = {
     type: band.boss,
     ...b.at(80, F),

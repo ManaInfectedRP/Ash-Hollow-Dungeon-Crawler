@@ -7,7 +7,7 @@ import { CombatSystem, type Hittable } from '../systems/CombatSystem';
 import { WEAPONS, type PlayerAttackDef, type StatusHit, type Weapon } from '../systems/attacks';
 import { equipStats, type EquipStats, type RollClass } from '../systems/equipment';
 import { playerBodyKey, weaponSheetKey, WEAPON_STEP, type Bone } from '../gfx/sprites';
-import { ITEMS } from '../data/items';
+import { ITEMS, lookId } from '../data/items';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import type { Enemy } from './Enemy';
 import { sfx } from '../systems/Sfx';
@@ -203,7 +203,8 @@ export class Player {
   }
 
   private lookKey(_eq: EquipStats) {
-    return playerBodyKey(useInventoryStore.getState().equipped.armor);
+    const armor = useInventoryStore.getState().equipped.armor;
+    return playerBodyKey(armor ? lookId(ITEMS[armor]) : null);
   }
 
   /** Place the weapon sprite on the weapon bone of the current frame (mirrored when facing left). */
@@ -282,7 +283,7 @@ export class Player {
   /** Pick up equipment changes (from the React inventory) between actions. */
   private refreshEquipment() {
     this.eq = equipStats();
-    const sk = this.eq.shieldItem ? `shield-${this.eq.shieldItem}` : null;
+    const sk = this.eq.shieldItem ? `shield-${lookId(ITEMS[this.eq.shieldItem])}` : null;
     this.shieldKey = sk && this.scene.textures.exists(sk) ? sk : null;
     if (this.state === 'attack' || this.state === 'riposte') return;
     this.weapon = this.eq.weapon;
@@ -368,7 +369,7 @@ export class Player {
     if (this.staminaDelay > 0) this.staminaDelay -= dt;
     else if (this.state !== 'attack' && this.state !== 'roll' && !this.sprinting) {
       const rate = (this.state === 'drink' ? 0.4 : this.state === 'block' ? 0.3 : 1) * (this.frostT > 0 ? 0.5 : 1);
-      this.stamina = Math.min(d.maxStamina, this.stamina + STAMINA_REGEN * rate * dt);
+      this.stamina = Math.min(d.maxStamina, this.stamina + STAMINA_REGEN * rate * this.eq.staminaRegen * dt);
     }
     this.hp = Math.min(this.hp, d.maxHp);
 
@@ -605,7 +606,7 @@ export class Player {
       }
       const cm = def.chargeMax ? 1 + 0.6 * (a.charge / def.chargeMax) : 1;
       const rect = CombatSystem.box(this.x, this.y, this.facing, def.hitbox);
-      this.scene.combat.playerStrike(
+      const landed = this.scene.combat.playerStrike(
         rect,
         a.hit,
         {
@@ -620,6 +621,8 @@ export class Player {
         def.hitstop * (cm > 1.3 ? 1.4 : 1),
         def.shake * cm,
       );
+      // leeching gear and the Boon of Thirst
+      if (landed && this.eq.lifeOnHit > 0) this.hp = Math.min(derived().maxHp, this.hp + this.eq.lifeOnHit * landed);
     }
 
     // combo queue + roll cancel in late recovery
@@ -656,6 +659,10 @@ export class Player {
       usePlayerStore.setState({ flasks: ps.flasks - 1 });
     } else {
       const def = ITEMS[itemId];
+      if (def?.use?.returnHome && !this.scene.canReturnHome()) {
+        useGameStore.getState().showToast('It only stirs in the Deep');
+        return;
+      }
       if (!def?.use || !useInventoryStore.getState().remove(itemId)) {
         useGameStore.getState().showToast(def ? `No ${def.name} left` : 'No quick item');
         return;
@@ -686,6 +693,7 @@ export class Player {
       usePlayerStore.getState().addSouls(use.souls);
       sfx.souls();
     }
+    if (use.returnHome) this.scene.returnHome('ember');
     const extra = use.maxFlasks;
     if (extra) {
       usePlayerStore.setState((s) => ({ maxFlasks: s.maxFlasks + extra, flasks: s.flasks + extra }));
@@ -697,6 +705,10 @@ export class Player {
   /** Inventory "Use" while the menu is open: no animation. */
   useFromMenu(itemId: string) {
     if (!this.alive || !ITEMS[itemId]?.use) return false;
+    if (ITEMS[itemId].use!.returnHome && !this.scene.canReturnHome()) {
+      useGameStore.getState().showToast('It only stirs in the Deep');
+      return false;
+    }
     if (!useInventoryStore.getState().remove(itemId)) return false;
     this.applyItem(itemId);
     return true;
@@ -725,6 +737,9 @@ export class Player {
     if (this.state === 'dead') return 'none';
     if (this.isInvulnerable() || debugState.god) return 'dodged';
     if (this.state === 'rest') this.standUp();
+    // the Deep hits harder the further down you are; elites harder still
+    dmg *= this.scene.enemyDmgMul * (src.attacker?.dmgMul ?? 1);
+    if (src.attacker?.eliteStatus && !src.status) src = { ...src, status: src.attacker.eliteStatus };
     const frontal = dir === -this.facing;
     const shield = this.eq.shield;
     const sx = this.shieldSprite.x;
@@ -777,6 +792,7 @@ export class Player {
     }
     dmg = Math.max(1, Math.round(dmg * (1 - this.eq.defense)));
     this.hp -= dmg;
+    src.attacker?.onDealtDamage(dmg);
     this.regen = null;
     if (src.status) this.addBuildup(src.status.type, src.status.amount);
     this.scene.fx.bleed(this.x, this.y - 4, 12);

@@ -8,6 +8,9 @@ import { useInventoryStore } from '../stores/inventoryStore';
 import { usePlayerStore } from '../stores/playerStore';
 import { useGameStore } from '../stores/gameStore';
 import { sfx } from './systems/Sfx';
+import { rollGear } from './dungeon/loot';
+import { Rng } from './dungeon/rng';
+import { useRunStore } from '../stores/runStore';
 
 // Phaser sizes and centres the canvas from getBoundingClientRect(), which is the on-screen box – rotated
 // when the app fakes landscape (see fakeLandscape.ts). Use the elements' own layout sizes instead.
@@ -89,7 +92,7 @@ export function createGame(parent: HTMLElement) {
   // ?debug exposes hooks for automated testing in the browser console
   if (new URLSearchParams(location.search).has('debug'))
     Object.assign(window, {
-      __souls: { game, touchInput, pressTouch, stores: { inventory: useInventoryStore, player: usePlayerStore, game: useGameStore }, sfx },
+      __souls: { game, touchInput, pressTouch, stores: { inventory: useInventoryStore, player: usePlayerStore, game: useGameStore, run: useRunStore }, sfx, deep: { rollGear, Rng } },
     });
   return game;
 }

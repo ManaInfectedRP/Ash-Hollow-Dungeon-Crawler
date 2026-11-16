@@ -24,7 +24,7 @@ export class TitleScene extends Phaser.Scene {
     const w = this.scale.width;
     const h = this.scale.height;
     this.bg = [];
-    useGameStore.setState({ menu: 'title', boss: null, prompt: null, dead: false, paused: false, restOpen: false, invOpen: false, dialogue: null, shop: null, ending: false });
+    useGameStore.setState({ menu: 'title', boss: null, prompt: null, dead: false, paused: false, restOpen: false, invOpen: false, dialogue: null, shop: null, ending: false, well: false, shrine: null, mapOpen: false });
 
     const sky = this.add.tileSprite(0, 0, w, h, 'bg-sky').setOrigin(0).setScrollFactor(0);
     this.add.image(w * 0.78, 52, 'moon').setScrollFactor(0).setAlpha(0.9);
@@ -52,7 +52,7 @@ export class TitleScene extends Phaser.Scene {
 
     sfx.playMusic('hollow');
 
-    const onStart = (debugAt?: { area: string; at: { x: number; y: number } }) => {
+    const onStart = (debugAt?: { area: string; at?: { x: number; y: number }; depth?: number; seed?: number }) => {
       // Continue reads the save; Start Over has already wiped it
       this.registry.remove('world');
       this.scene.start('Game', debugAt);
@@ -61,6 +61,16 @@ export class TitleScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => EventBus.off('ui:start', onStart));
     this.events.once(Phaser.Scenes.Events.DESTROY, () => EventBus.off('ui:start', onStart));
     this.cameras.main.fadeIn(800);
+
+    // ?debug&depth=5[&seed=123]: straight into a floor of the Deep (automated testing)
+    const q = new URLSearchParams(location.search);
+    if (q.has('debug') && q.has('depth') && !this.registry.get('autostarted')) {
+      this.registry.set('autostarted', true);
+      this.time.delayedCall(200, () => {
+        useGameStore.setState({ menu: null });
+        onStart({ area: 'deep', depth: Number(q.get('depth')) || 1, seed: q.has('seed') ? Number(q.get('seed')) : undefined });
+      });
+    }
   }
 
   update(_time: number, delta: number) {

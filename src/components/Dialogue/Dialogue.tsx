@@ -7,6 +7,8 @@ import { useGameStore } from '../../stores/gameStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
 import { ItemIcon } from '../Inventory/Inventory';
+import { RARITY_COLOR } from '../../game/dungeon/loot';
+import { markAtRisk, useRunStore } from '../../stores/runStore';
 
 const CHARS_PER_SEC = 55;
 
@@ -98,14 +100,27 @@ export function Dialogue() {
 }
 
 /** Merchant shop: buy with souls. */
+/** what a merchant will pay for a piece of your gear (rolled gear only – plain items are not bought) */
+const sellPrice = (id: string) => {
+  const def = ITEMS[id];
+  return def?.value ? Math.round(def.value * 0.6) : 0;
+};
+
 export function Shop() {
   const shopId = useGameStore((s) => s.shop);
   const souls = usePlayerStore((s) => s.souls);
   const items = useInventoryStore((s) => s.items);
+  const equipped = useInventoryStore((s) => s.equipped);
+  const run = useRunStore((s) => s.run);
+  const [tab, setTab] = useState<'buy' | 'sell'>('buy');
   if (!shopId) return null;
   const npc = NPCS[shopId];
+  // the peddler's stock changes with every floor
+  const stock = shopId === 'wanderer' ? run?.shops[`f${run.depth}`] ?? [] : npc.shop ?? [];
+  const canSell = !run;
   const close = () => {
     useGameStore.setState({ shop: null });
+    setTab('buy');
     EventBus.emit('ui:dialogue-end');
   };
   const buy = (item: string, price: number) => {
@@ -113,9 +128,28 @@ export function Shop() {
     if (ps.souls < price) return;
     usePlayerStore.setState({ souls: ps.souls - price });
     useInventoryStore.getState().add(item, 1);
+    const r = useRunStore.getState().run;
+    if (r) {
+      markAtRisk(item, 1);
+      // rolled gear is one of a kind: it leaves the stock
+      if (shopId === 'wanderer' && ITEMS[item]?.rarity) {
+        const key = `f${r.depth}`;
+        const cur = useRunStore.getState().run!;
+        useRunStore.setState({ run: { ...cur, shops: { ...cur.shops, [key]: (cur.shops[key] ?? []).filter((e) => e.item !== item) } } });
+      }
+    }
     sfx.souls();
     EventBus.emit('ui:save');
   };
+  const sell = (item: string) => {
+    const price = sellPrice(item);
+    if (!price || !useInventoryStore.getState().remove(item, 1)) return;
+    usePlayerStore.getState().addSouls(price);
+    sfx.souls();
+    EventBus.emit('ui:save');
+  };
+  const equippedIds = new Set(Object.values(equipped).filter(Boolean));
+  const sellable = Object.keys(items).filter((id) => sellPrice(id) > 0 && !equippedIds.has(id));
   return (
     <div className="panel-wrap">
       <div className="panel shop">
@@ -123,19 +157,60 @@ export function Shop() {
         <div className="rest-meta">
           <span>Souls {souls.toLocaleString('sv-SE')}</span>
         </div>
-        {(npc.shop ?? []).map((e) => (
-          <div className="shop-row" key={e.item}>
-            <ItemIcon def={ITEMS[e.item]} size={28} />
-            <div className="shop-info">
-              <span className="shop-name">{ITEMS[e.item].name}</span>
-              <span className="stat-eff">{ITEMS[e.item].desc}</span>
-            </div>
-            <span className="shop-owned">×{items[e.item] ?? 0}</span>
-            <button disabled={souls < e.price} onClick={() => buy(e.item, e.price)}>
-              {e.price}
+        {canSell && (
+          <nav className="inv-tabs">
+            <button className={tab === 'buy' ? 'on' : ''} onClick={() => setTab('buy')}>
+              Buy
             </button>
-          </div>
-        ))}
+            <button className={tab === 'sell' ? 'on' : ''} onClick={() => setTab('sell')}>
+              Sell spoils
+            </button>
+          </nav>
+        )}
+        {tab === 'buy' || !canSell ? (
+          <>
+            {stock.length === 0 && <p className="detail-desc dim">Sold out.</p>}
+            {stock.map((e) => {
+              const def = ITEMS[e.item];
+              if (!def) return null;
+              return (
+                <div className="shop-row" key={e.item}>
+                  <ItemIcon def={def} size={28} />
+                  <div className="shop-info">
+                    <span className="shop-name" style={{ color: def.rarity ? RARITY_COLOR[def.rarity] : undefined }}>
+                      {def.name}
+                    </span>
+                    <span className="stat-eff">{def.affixLines?.length ? def.affixLines.join(' · ') : def.desc}</span>
+                  </div>
+                  <span className="shop-owned">×{items[e.item] ?? 0}</span>
+                  <button disabled={souls < e.price} onClick={() => buy(e.item, e.price)}>
+                    {e.price}
+                  </button>
+                </div>
+              );
+            })}
+          </>
+        ) : (
+          <>
+            {sellable.length === 0 && <p className="detail-desc dim">Nothing she wants. Bring back rolled gear from the Deep (not what you wear).</p>}
+            {sellable.map((id) => {
+              const def = ITEMS[id];
+              return (
+                <div className="shop-row" key={id}>
+                  <ItemIcon def={def} size={28} />
+                  <div className="shop-info">
+                    <span className="shop-name" style={{ color: def.rarity ? RARITY_COLOR[def.rarity] : undefined }}>
+                      {def.name}
+                    </span>
+                    <span className="stat-eff">{def.affixLines?.join(' · ')}</span>
+                  </div>
+                  <span className="shop-owned">×{items[id]}</span>
+                  <button onClick={() => sell(id)}>+{sellPrice(id)}</button>
+                </div>
+              );
+            })}
+          </>
+        )}
         <button className="primary" onClick={close}>
           Leave
         </button>

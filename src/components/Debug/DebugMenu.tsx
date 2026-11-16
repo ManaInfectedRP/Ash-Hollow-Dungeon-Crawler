@@ -3,6 +3,8 @@ import type Phaser from 'phaser';
 import { EventBus } from '../../game/EventBus';
 import { DEBUG, debugState } from '../../game/debugState';
 import { AREAS } from '../../game/world/areas';
+import { BAND, bandFor } from '../../game/dungeon/tables';
+import { useRunStore } from '../../stores/runStore';
 import { ITEMS, MAX_UPGRADE, type ItemDef } from '../../game/data/items';
 import type { GameScene } from '../../game/scenes/GameScene';
 import { useGameStore } from '../../stores/gameStore';
@@ -32,7 +34,9 @@ function spotsFor(id: string): { name: string; spots: Spot[] } {
   return { name: L.name, spots };
 }
 
-const KNOWN_FLAGS = ['bossDefeated', 'shepherdDefeated', 'colossusDefeated', 'matriarchDefeated', 'motherDefeated', 'sphinxDefeated', 'gladiatorDefeated', 'leviathanDefeated', 'ayameDefeated', 'kingDefeated', 'shortcut'];
+const KNOWN_FLAGS: string[] = [];
+/** the first floor of every band and every guardian floor */
+const DEPTHS = Array.from({ length: 30 }, (_, i) => i + 1).filter((d) => d % BAND === 0 || d % BAND === 1);
 const KINDS: ItemDef['kind'][] = ['weapon', 'shield', 'armor', 'consumable', 'material'];
 type Tab = 'world' | 'items' | 'player' | 'flags';
 
@@ -96,6 +100,17 @@ export function DebugMenu() {
     }
   };
 
+  const deep = (depth: number) => {
+    setOpen(false);
+    if (onTitle) {
+      useGameStore.setState({ menu: null });
+      EventBus.emit('ui:start', { area: 'deep', depth });
+    } else {
+      EventBus.emit('ui:resume');
+      scene()?.debugDeep(depth);
+    }
+  };
+
   const give = (id: string, n: number) => {
     useInventoryStore.getState().add(id, n);
     say(`+${n} ${ITEMS[id].name}`);
@@ -143,6 +158,28 @@ export function DebugMenu() {
             {cur === 'world' && (
               <div className="dbg-body">
                 {onTitle && <p className="dbg-note">Starts from your save (or a fresh game) at the chosen spot.</p>}
+                <div className="dbg-area">
+                  <div className="dbg-area-name">
+                    The Deep {s?.floor && <em>(depth {s.floor.depth}, seed {useRunStore.getState().run?.seed})</em>}
+                  </div>
+                  <div className="dbg-chips">
+                    {DEPTHS.map((d) => (
+                      <button key={d} title={bandFor(d).name} onClick={() => deep(d)}>
+                        {d % BAND === 0 ? `☠${d}` : `B${d}`}
+                      </button>
+                    ))}
+                    {s?.floor && <button onClick={() => (setOpen(false), EventBus.emit('ui:resume'), s.debugDescend())}>Next floor ▼</button>}
+                    <button
+                      onClick={() => {
+                        const m = useRunStore.getState().meta;
+                        useRunStore.setState({ meta: { ...m, waystones: [...new Set([...m.waystones, ...DEPTHS.filter((d) => d % BAND === 1)])].sort((a, b) => a - b) } });
+                        say('All waystones awake');
+                      }}
+                    >
+                      All waystones
+                    </button>
+                  </div>
+                </div>
                 {areas.map((a) => (
                   <div key={a.id} className="dbg-area">
                     <div className="dbg-area-name">

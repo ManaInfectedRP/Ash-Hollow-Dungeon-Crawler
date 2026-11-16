@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { GameScene } from '../scenes/GameScene';
 import { DEPTH } from '../constants';
 import { CombatSystem, type HitInfo, type Hittable } from '../systems/CombatSystem';
-import type { AttackDef } from '../systems/attacks';
+import type { AttackDef, StatusHit } from '../systems/attacks';
 import { sfx } from '../systems/Sfx';
 import { TELL_COLOR, Telegraph } from '../systems/Telegraph';
 import type { Element } from '../systems/attacks';
@@ -85,6 +85,11 @@ export class Enemy implements Hittable {
   alive = true;
   /** raised by a boss: no souls/drops, removed when the fight resets */
   summoned = false;
+  /** the Deep: damage multiplier (depth, elites) and the elite affix, if any */
+  dmgMul = 1;
+  elite: string | null = null;
+  /** an elite's frost / venom: build-up its blows add */
+  eliteStatus?: StatusHit;
   speedMul = 1;
   staggerTime = 0.9;
   /** > 0 while reeling from a parry: a riposte is possible */
@@ -638,6 +643,13 @@ export class Enemy implements Hittable {
   }
 
   protected onDamaged() {}
+
+  /** a blow of ours landed on the player (vampiric elites drink from it) */
+  onDealtDamage(dmg: number) {
+    if (this.elite !== 'vampiric' || !this.alive) return;
+    this.hp = Math.min(this.cfg.hp, this.hp + dmg * 0.6);
+    this.scene.fx.heal(this.x, this.y);
+  }
 
   /** our swing was parried: reel back, wide open for a riposte */
   onParried() {

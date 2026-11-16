@@ -8,6 +8,8 @@ import { computeEquip } from '../../game/systems/equipment';
 import { Inventory, ItemIcon } from '../Inventory/Inventory';
 import { Dialogue, Shop } from '../Dialogue/Dialogue';
 import { OptionsList } from '../Menu/MainMenu';
+import { MapOverlay, RunSummary, ShrineMenu, WellMenu } from '../Deep/Deep';
+import { buffMods } from '../../stores/runStore';
 import { useGameStore } from '../../stores/gameStore';
 
 function YouDied() {
@@ -72,7 +74,7 @@ function LevelUp() {
   const equipped = useInventoryStore((s) => s.equipped);
   const upgrades = useInventoryStore((s) => s.upgrades);
   const cost = levelCost(level);
-  const eq = computeEquip(stats, equipped, upgrades);
+  const eq = computeEquip(stats, equipped, upgrades, buffMods());
   const effect = (k: StatKey) =>
     k === 'vigor' ? maxHpFor(stats) : k === 'endurance' ? `${maxStaminaFor(stats)} · ${maxLoadFor(stats)}` : eq.ar;
   return (
@@ -220,7 +222,7 @@ function PauseMenu() {
             <tr><td>Riposte (after a parry)</td><td>J</td></tr>
             <tr><td>Drop through platform</td><td>S + Jump</td></tr>
             <tr><td>Flask · Quick item · Interact</td><td>R · Q · E</td></tr>
-            <tr><td>Inventory</td><td>I / Tab</td></tr>
+            <tr><td>Inventory · Map</td><td>I / Tab · M</td></tr>
           </tbody>
         </table>
         <OptionsList />
@@ -247,7 +249,8 @@ export function Overlays() {
   const menu = useGameStore((s) => s.menu);
   const talking = useGameStore((s) => !!s.dialogue || !!s.shop);
   const ending = useGameStore((s) => s.ending);
-  const halted = paused || invOpen || talking || ending;
+  const deepMenu = useGameStore((s) => s.well || !!s.shrine || s.mapOpen);
+  const halted = paused || invOpen || talking || ending || deepMenu;
 
   // the store is the source of truth; forward pause changes to Phaser
   useEffect(() => {
@@ -272,6 +275,14 @@ export function Overlays() {
       if (s.menu) return; // main menu is mouse/touch driven
       if (s.ending) return; // the ending card only closes through its button
       if (s.dialogue) return; // the dialogue box handles its own keys
+      if (s.well || s.shrine || s.mapOpen) {
+        if (e.key === 'Escape' || ((e.key === 'm' || e.key === 'M') && s.mapOpen)) useGameStore.setState({ well: false, shrine: null, mapOpen: false });
+        return;
+      }
+      if ((e.key === 'm' || e.key === 'M') && !s.dead && !s.paused && !s.invOpen && !s.restOpen) {
+        useGameStore.setState({ mapOpen: true });
+        return;
+      }
       if (s.shop) {
         if (e.key === 'Escape') {
           useGameStore.setState({ shop: null });
@@ -319,6 +330,10 @@ export function Overlays() {
       <Shop />
       <PauseMenu />
       <PreReleaseEnd />
+      <WellMenu />
+      <ShrineMenu />
+      <MapOverlay />
+      <RunSummary />
     </>
   );
 }
