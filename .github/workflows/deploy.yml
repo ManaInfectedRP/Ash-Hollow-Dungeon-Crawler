@@ -1,6 +1,6 @@
 # Publishes the game to GitHub Pages (the gh-pages branch):
-#   push to dev  → the test build at  https://manainfectedrp.github.io/Ash-Hollow/dev/
-#   push to main → the real game at    https://manainfectedrp.github.io/Ash-Hollow/
+#   push to dev  → the test build at  https://manainfectedrp.github.io/Ash-Hollow-Dungeon-Crawler/dev/
+#   push to main → the real game at    https://manainfectedrp.github.io/Ash-Hollow-Dungeon-Crawler/
 # The two live side by side: a main deploy replaces everything except dev/, a dev deploy replaces only dev/.
 name: Deploy to GitHub Pages
 
@@ -29,6 +29,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      - run: npm test
 
       - name: Build
         run: npx vite build
@@ -45,8 +46,17 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git clone --quiet --depth 1 --branch gh-pages "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" site
-          cd site
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          if git ls-remote --exit-code --heads "$REMOTE" gh-pages >/dev/null; then
+            git clone --quiet --depth 1 --branch gh-pages "$REMOTE" site
+            cd site
+          else
+            # first deploy: start the gh-pages branch from nothing
+            mkdir site
+            cd site
+            git init --quiet -b gh-pages
+            git remote add origin "$REMOTE"
+          fi
           if [ "$TARGET" = "dev" ]; then
             rm -rf dev
             mkdir dev
@@ -64,5 +74,7 @@ jobs:
           fi
           git commit --quiet -m "Deploy ${TARGET} from ${SHA::7}"
           git push --quiet origin gh-pages
-          if [ "$TARGET" = "dev" ]; then URL="https://manainfectedrp.github.io/Ash-Hollow/dev/"; else URL="https://manainfectedrp.github.io/Ash-Hollow/"; fi
+          OWNER="${REPO%%/*}"
+          BASE="https://${OWNER,,}.github.io/${REPO#*/}/"
+          if [ "$TARGET" = "dev" ]; then URL="${BASE}dev/"; else URL="$BASE"; fi
           echo "### Deployed ${TARGET}: ${URL}" >> "$GITHUB_STEP_SUMMARY"

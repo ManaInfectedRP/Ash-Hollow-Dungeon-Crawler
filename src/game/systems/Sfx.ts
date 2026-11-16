@@ -32,7 +32,7 @@ const SAMPLES: Record<string, string[]> = {
 
 export type MusicTrack = 'hollow' | 'crypt' | 'boss' | null;
 
-const SETTINGS_KEY = 'ashen-hollow-audio';
+const SETTINGS_KEY = 'ash-hollow-deep-audio';
 
 class Sfx {
   private ctx: AudioContext | null = null;

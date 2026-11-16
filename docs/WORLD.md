@@ -1,5 +1,10 @@
 # World – areas, doors, NPCs, enemies
 
+> **The Deep:** the hand-made campaign areas listed below (level1 … throne) came from the original
+> Ash & Hollow and are not part of this game – here the only hand-made area is the camp (`world/camp.ts`); every
+> floor is generated (see [DEEP.md](DEEP.md)). The `Builder` API, bosses and their tells, elements and gear
+> described here are all still how the game works.
+
 The world is a set of **areas** connected by **doors**. Each area is one Phaser scene run
 (`GameScene` restarts with `{ area, entry }` when you walk through a door).
 

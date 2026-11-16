@@ -41,7 +41,7 @@ export interface GameStore {
 }
 
 let seq = 1;
-const SETTINGS_KEY = 'ashen-hollow-settings';
+const SETTINGS_KEY = 'ash-hollow-deep-settings';
 const saved: { showTouch?: boolean; shake?: boolean } = (() => {
   try {
     return JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}');

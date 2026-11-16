@@ -19,11 +19,11 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.png'],
       manifest: {
-        name: DEV_CHANNEL ? 'Ash & Hollow (Dev)' : 'Ash & Hollow',
-        short_name: DEV_CHANNEL ? 'A&H Dev' : 'Ash & Hollow',
-        // the dev build is a separate installable app
-        id: DEV_CHANNEL ? 'ash-and-hollow-dev' : 'ash-and-hollow',
-        description: 'A 2D souls-like platformer.',
+        name: DEV_CHANNEL ? 'Ash & Hollow: The Deep (Dev)' : 'Ash & Hollow: The Deep',
+        short_name: DEV_CHANNEL ? 'Deep Dev' : 'The Deep',
+        // the dev build is a separate installable app (and neither is the original Ash & Hollow)
+        id: DEV_CHANNEL ? 'ash-hollow-deep-dev' : 'ash-hollow-deep',
+        description: 'A 2D souls-like dungeon crawler.',
         start_url: '.',
         display: 'fullscreen',
         orientation: 'landscape',

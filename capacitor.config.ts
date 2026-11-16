@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'se.ashenhollow.game',
-  appName: 'Ash & Hollow',
+  appId: 'se.ashenhollow.deep',
+  appName: 'The Deep',
   webDir: 'dist',
 };
 

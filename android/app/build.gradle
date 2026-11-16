@@ -4,7 +4,7 @@ android {
     namespace = "se.ashenhollow.game"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "se.ashenhollow.game"
+        applicationId "se.ashenhollow.deep"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

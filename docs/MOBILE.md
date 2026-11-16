@@ -16,7 +16,7 @@ not active in this setup. Use the Android app below for the full experience.
 
 ## Android app (Capacitor)
 
-The `android/` folder is a Capacitor 8 project (`capacitor.config.ts`, app id `se.ashenhollow.game`):
+The `android/` folder is a Capacitor 8 project (`capacitor.config.ts`, app id `se.ashenhollow.deep`):
 locked to landscape (`sensorLandscape`), immersive fullscreen (`MainActivity.java`), launcher icons
 from `npm run icons`.
 
