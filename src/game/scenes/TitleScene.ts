@@ -26,10 +26,18 @@ export class TitleScene extends Phaser.Scene {
     this.bg = [];
     useGameStore.setState({ menu: 'title', boss: null, prompt: null, dead: false, paused: false, restOpen: false, invOpen: false, dialogue: null, shop: null, ending: false, well: false, shrine: null, mapOpen: false });
 
-    const sky = this.add.tileSprite(0, 0, w, h, 'bg-sky').setOrigin(0).setScrollFactor(0);
-    this.add.image(w * 0.78, 52, 'moon').setScrollFactor(0).setAlpha(0.9);
+    // the camp's clearing at night: stars, the moon, ranks of pines and mist
+    const sky = this.add.tileSprite(0, 0, w, h, 'bg-sky').setOrigin(0).setScrollFactor(0).setTint(0xb0b8e0);
+    this.add.image(w * 0.78, 46, 'moon').setScrollFactor(0).setAlpha(0.95);
     this.bg.push({ s: sky, f: 0.02 });
-    for (const [key, f] of [['bg-mount', 0.1], ['bg-ruins', 0.3]] as const) this.bg.push({ s: this.add.tileSprite(0, 0, w, h, key).setOrigin(0), f });
+    for (const [key, f, a, tint] of [
+      ['bg-forest-far', 0.12, 1, 0xffffff],
+      ['bg-fog', 0.22, 0.45, 0x9aa8c8],
+      ['bg-forest-mid', 0.3, 1, 0xffffff],
+      ['bg-fog', 0.42, 0.3, 0x8a98b8],
+      ['bg-forest-near', 0.55, 1, 0xffffff],
+    ] as const)
+      this.bg.push({ s: this.add.tileSprite(0, 0, w, h, key).setOrigin(0).setAlpha(a).setTint(tint), f });
 
     // a strip of ground made of the real tiles
     const cols = Math.ceil(w / TILE) + 2;
@@ -37,20 +45,24 @@ export class TitleScene extends Phaser.Scene {
     const data = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, () => (r === 0 ? T.TOP : T.STONE)));
     const map = this.make.tilemap({ data, tileWidth: TILE, tileHeight: TILE });
     const ground = h - 44;
-    map.createLayer(0, map.addTilesetImage('tiles')!, -TILE, ground)!.setDepth(DEPTH.DECOR);
+    map.createLayer(0, map.addTilesetImage('tiles', 'tiles-forest')!, -TILE, ground)!.setDepth(DEPTH.DECOR);
 
     // the menu sits on the left, the bonfire scene on the right
     const cx = Math.round(w * 0.68);
-    this.bonfire = new Bonfire(this, 'title', cx, ground, true);
+    this.bonfire = new Bonfire(this, 'title', cx, ground, true, 'campfire');
     this.add.sprite(cx + 22, ground, 'player-garb', 'kneel').setOrigin(0.5, 1).setFlipX(true).setDepth(DEPTH.PLAYER);
-    this.add.image(cx + 26, ground - 2, 'prop:tombstone').setOrigin(0.5, 1).setScale(0.75).setDepth(DEPTH.DECOR + 1);
-    this.add.image(cx + 70, ground, 'prop:tombstone_cracked').setOrigin(0.5, 1).setScale(0.75).setDepth(DEPTH.DECOR + 1);
+    this.add.image(cx - 30, ground, 'prop:log').setOrigin(0.5, 1).setDepth(DEPTH.DECOR + 1);
+    this.add.image(cx + 64, ground, 'prop:tent').setOrigin(0.5, 1).setDepth(DEPTH.DECOR + 1);
+    this.add.image(cx + 108, ground, 'prop:pine').setOrigin(0.5, 1).setDepth(DEPTH.DECOR + 1);
+    this.add.image(cx - 90, ground, 'prop:pine_small').setOrigin(0.5, 1).setDepth(DEPTH.DECOR + 1);
+    for (const dx of [-60, 30, 90]) this.add.image(cx + dx, ground, 'prop:grass').setOrigin(0.5, 1).setDepth(DEPTH.DECOR + 1);
 
     this.lighting = new Lighting(this, 0.72);
-    this.lighting.add(() => ({ x: cx, y: ground - 12, r: 150, flicker: 0.08 }));
+    this.lighting.add(() => ({ x: cx, y: ground - 12, r: 170, flicker: 0.1 }));
     this.lighting.add(() => ({ x: w * 0.78, y: 52, r: 60 }));
 
     sfx.playMusic('hollow');
+    sfx.setAmbience('camp');
 
     const onStart = (debugAt?: { area: string; at?: { x: number; y: number }; depth?: number; seed?: number }) => {
       // Continue reads the save; Start Over has already wiped it

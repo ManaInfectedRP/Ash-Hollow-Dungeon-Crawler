@@ -1,43 +1,59 @@
 import { Builder, type LevelData } from './builder';
 
 /**
- * The Last Camp – the hub above the Deep. A bonfire (level up, reinforce), the quartermaster (wares,
- * buys your spoils), the keeper of the well (who explains the rules), and the well itself: the way down,
- * to the first floor or to any waystone you have earned.
+ * The Last Camp – a clearing in a night forest, above the Deep. A campfire (level up, reinforce) with logs
+ * to sit on, Hessa by her cart (wares, buys your spoils, bigger packs), Corvin by the well (the rules), and
+ * the well itself on its little rise: the way down, to the first floor or any waystone you have earned.
  */
 export const CAMP_FIRE = 'camp-fire';
 
 export function buildCamp(): LevelData {
-  const b = new Builder(76, 26, 'camp', 'The Last Camp', 'outdoor');
-  b.fill(0, 0, 1, 25);
-  b.fill(74, 0, 75, 25);
-  b.ground(0, 75, 19);
-  // a ruined wall and steps on the left, the well's broken chapel on the right
-  b.fill(2, 15, 6, 18);
-  b.fill(7, 17, 9, 18);
-  b.fill(58, 18, 73, 18);
-  b.fill(64, 12, 73, 12);
-  b.fill(72, 12, 73, 17);
-  b.data.spawn = b.at(30, 19);
-  b.data.bonfires.push({ id: CAMP_FIRE, ...b.at(32, 19) });
-  b.data.npcs.push({ id: 'quartermaster', ...b.at(20, 19) });
-  b.data.npcs.push({ id: 'keeper', ...b.at(54, 19) });
-  b.door({ id: 'well', to: '__well', entry: '', look: 'well' }, 66, 18);
+  const G = 17; // ground surface row
+  const b = new Builder(84, 20, 'camp', 'The Last Camp', 'forest');
+  // grass all the way across; the world's edges hold you in (no walls to see)
+  b.ground(0, 83, G);
+  // a low rise for the well
+  b.fill(57, G - 1, 69, G - 1);
+  b.data.spawn = b.at(30, G);
+  b.data.bonfires.push({ id: CAMP_FIRE, ...b.at(33, G) });
+  b.data.npcs.push({ id: 'quartermaster', ...b.at(21, G) });
+  b.data.npcs.push({ id: 'keeper', ...b.at(53, G) });
+  b.door({ id: 'well', to: '__well', entry: '', look: 'well' }, 63, G - 1);
 
   const prop = b.prop.bind(b);
-  prop('tombstone', 12, 19);
-  prop('tombstone_cracked', 15, 19);
-  prop('torch', 24, 19, { light: true });
-  prop('barrel', 17, 19);
-  prop('crate', 18, 19);
-  prop('banner', 4, 13);
-  prop('torch', 40, 19, { light: true });
-  prop('skull', 45, 19);
-  prop('tombstone', 48, 19);
-  prop('torch', 61, 18, { light: true });
-  prop('chain', 66, 13, { hang: true });
-  prop('candle', 69, 18, { light: true });
-  prop('candle', 63, 18, { light: true });
-  prop('gargoyle', 71, 18);
+  // the forest's edge on the left
+  prop('pine', 1, G);
+  prop('pine_small', 4, G);
+  prop('pine', 7, G);
+  prop('bush', 3, G);
+  prop('fern', 9, G);
+  // the tent, a torch, Hessa's cart
+  prop('tent', 12, G);
+  prop('torch', 15, G, { light: true });
+  prop('cart', 18, G);
+  prop('stump', 24, G);
+  // around the fire: logs to sit on
+  prop('log', 28, G);
+  prop('log', 38, G);
+  prop('grass', 26, G);
+  prop('flowers', 35, G);
+  prop('grass', 41, G);
+  // the path to the well
+  prop('pine_small', 46, G);
+  prop('fern', 49, G);
+  prop('grass', 51, G);
+  prop('torch', 56, G, { light: true });
+  prop('stump', 59, G - 1);
+  prop('flowers', 67, G - 1);
+  prop('candle', 61, G - 1, { light: true });
+  prop('candle', 65, G - 1, { light: true });
+  // the forest closes in on the right
+  prop('bush', 71, G);
+  prop('pine', 72, G);
+  prop('pine_small', 76, G);
+  prop('pine', 79, G);
+  prop('fern', 74, G);
+  prop('pine', 83, G);
+  for (const col of [6, 17, 31, 44, 55, 70, 78]) prop('grass', col, G);
   return b.build();
 }

@@ -8,9 +8,10 @@ export class Bonfire {
   lit = false;
   private t = Math.random() * 10;
 
-  constructor(scene: Phaser.Scene, public id: string, public x: number, public y: number, lit: boolean) {
-    this.glow = scene.add.image(x, y - 10, 'glow').setBlendMode('ADD').setAlpha(0).setDepth(DEPTH.ITEMS - 1).setScale(1.6);
-    this.sprite = scene.add.sprite(x, y, 'bonfire', 'f0').setOrigin(0.5, 1).setDepth(DEPTH.ITEMS);
+  /** `look`: 'bonfire' (the coiled sword) or 'campfire' (stones and logs, the camp's fire) */
+  constructor(scene: Phaser.Scene, public id: string, public x: number, public y: number, lit: boolean, look: 'bonfire' | 'campfire' = 'bonfire') {
+    this.glow = scene.add.image(x, y - 10, 'glow').setBlendMode('ADD').setAlpha(0).setDepth(DEPTH.ITEMS - 1).setScale(look === 'campfire' ? 2.4 : 1.6);
+    this.sprite = scene.add.sprite(x, y, look, 'f0').setOrigin(0.5, 1).setDepth(DEPTH.ITEMS);
     this.embers = scene.add
       .particles(x, y - 10, 'px', {
         frequency: 140,

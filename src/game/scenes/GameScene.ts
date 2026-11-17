@@ -125,7 +125,7 @@ const PROP_LIGHT: Record<string, { r: number; flicker: number }> = {
 };
 
 /** how dark each theme is (alpha of the darkness layer) */
-const DARKNESS = { outdoor: 0.6, crypt: 0.86, lava: 0.8, frost: 0.55, mire: 0.84, tomb: 0.88, desert: 0.1, sky: 0, shrine: 0.8, ash: 0.7, keep: 0.86 } as const;
+const DARKNESS = { forest: 0.66, outdoor: 0.6, crypt: 0.86, lava: 0.8, frost: 0.55, mire: 0.84, tomb: 0.88, desert: 0.1, sky: 0, shrine: 0.8, ash: 0.7, keep: 0.86 } as const;
 
 /** every great soul: the Ashen Throne opens only when all of these have fallen */
 export const ALL_BOSSES = [
@@ -205,6 +205,8 @@ const PROP_SCALE: Record<string, number> = {
   // generated desert props are drawn at size
   cactus: 1, scrub: 1, urn: 1,
   paperlantern: 1, stonelantern: 1, torii: 1, bamboo: 1,
+  // the camp's clutter (gfx/camp.ts)
+  pine: 1, pine_small: 1, tent: 1, log: 1, stump: 1, bush: 1, fern: 1, grass: 1, flowers: 1, cart: 1,
 };
 
 const BONE_GRAVITY = 820;
@@ -366,7 +368,7 @@ export class GameScene extends Phaser.Scene {
 
     const map = this.make.tilemap({ data: this.level.tiles, tileWidth: TILE, tileHeight: TILE });
     const theme = this.level.theme;
-    const ts = map.addTilesetImage('tiles', SAND_THEMES.has(theme) ? 'tiles-sand' : theme === 'sky' ? 'tiles-cloud' : theme === 'shrine' ? 'tiles-shrine' : 'tiles')!;
+    const ts = map.addTilesetImage('tiles', SAND_THEMES.has(theme) ? 'tiles-sand' : theme === 'sky' ? 'tiles-cloud' : theme === 'shrine' ? 'tiles-shrine' : theme === 'forest' ? 'tiles-forest' : 'tiles')!;
     this.layer = map.createLayer(0, ts, 0, 0)!.setDepth(DEPTH.DECOR);
     this.layer.setCollision([T.TOP, T.STONE, T.ICE]);
     this.layer.forEachTile((t) => {
@@ -391,7 +393,11 @@ export class GameScene extends Phaser.Scene {
     this.fx = new Fx(this);
     this.controls = new Controls(this);
 
-    for (const b of this.level.bonfires) this.bonfires.push(new Bonfire(this, b.id, b.x, b.y, this.world.lit.includes(b.id)));
+    for (const b of this.level.bonfires) {
+      // the camp's fire never goes out
+      const camp = this.level.theme === 'forest';
+      this.bonfires.push(new Bonfire(this, b.id, b.x, b.y, camp || this.world.lit.includes(b.id), camp ? 'campfire' : 'bonfire'));
+    }
     for (const d of this.level.doors) this.doors.push(new Door(this, d));
     for (const n of this.level.npcs) this.npcs.push(new Npc(this, n.id, n.x, n.y));
     this.createChests();
@@ -437,6 +443,9 @@ export class GameScene extends Phaser.Scene {
     this.bindUi();
 
     sfx.playMusic(this.areaTrack());
+    // the camp sounds like a camp: the fire, crickets, wind in the pines, grass underfoot
+    sfx.setAmbience(this.level.theme === 'forest' ? 'camp' : null);
+    sfx.ground = this.level.theme === 'forest' ? 'grass' : 'stone';
     const f = this.floor;
     if (f) useGameStore.getState().showBanner(f.boss ? `DEPTH ${f.depth} \u00b7 GUARDIAN` : `DEPTH ${f.depth}`, f.boss ? 'red' : 'white', f.title);
     else useGameStore.getState().showBanner(this.level.name.toUpperCase(), 'white', this.world.lit.includes(CAMP_FIRE) ? 'The well waits' : 'Rest at the bonfire');
@@ -498,6 +507,23 @@ export class GameScene extends Phaser.Scene {
     const w = this.scale.width;
     const h = this.scale.height;
     this.moon = null;
+    if (this.level.theme === 'forest') {
+      // a clearing in a night forest: stars and the moon, three ranks of pines, mist between the trunks
+      const sky = this.add.tileSprite(0, 0, w, h, 'bg-sky').setOrigin(0).setScrollFactor(0).setDepth(DEPTH.BG - 5).setTint(0xb0b8e0);
+      this.moon = this.add.image(w * 0.78, 46, 'moon').setScrollFactor(0).setDepth(DEPTH.BG - 4).setAlpha(0.95);
+      this.bg.push({ s: sky, f: 0.02 });
+      for (const [key, f, a, tint] of [
+        ['bg-forest-far', 0.12, 1, 0xffffff],
+        ['bg-fog', 0.22, 0.45, 0x9aa8c8],
+        ['bg-forest-mid', 0.3, 1, 0xffffff],
+        ['bg-fog', 0.42, 0.3, 0x8a98b8],
+        ['bg-forest-near', 0.55, 1, 0xffffff],
+      ] as const) {
+        const s = this.add.tileSprite(0, 0, w, h, key).setOrigin(0).setScrollFactor(0).setDepth(DEPTH.BG - 3).setAlpha(a).setTint(tint);
+        this.bg.push({ s, f });
+      }
+      return;
+    }
     if (this.level.theme === 'keep') {
       // inside the king's keep: the crypt's stone, warmed by braziers
       this.cameras.main.setBackgroundColor('#0a0606');
@@ -892,9 +918,10 @@ export class GameScene extends Phaser.Scene {
   /** Static light sources: player, bonfires, light props. Dynamic ones are gathered each frame. */
   private createLights() {
     const L = this.lighting;
-    const playerR = this.level.theme === 'outdoor' ? 62 : 78;
+    const playerR = this.level.theme === 'outdoor' ? 62 : this.level.theme === 'forest' ? 70 : 78;
     L.add(() => (this.player.alive ? { x: this.player.x, y: this.player.y - 4, r: this.gloom ? 40 : playerR } : null));
-    for (const b of this.bonfires) L.add(() => (b.lit ? { x: b.x, y: b.y - 12, r: 130, flicker: 0.08 } : { x: b.x, y: b.y - 8, r: 26 }));
+    const fireR = this.level.theme === 'forest' ? 190 : 130;
+    for (const b of this.bonfires) L.add(() => (b.lit ? { x: b.x, y: b.y - 12, r: fireR, flicker: 0.1 } : { x: b.x, y: b.y - 8, r: 26 }));
     for (const pr of this.level.props) {
       const l = PROP_LIGHT[pr.key];
       if (!pr.light || !l) continue;
@@ -1150,6 +1177,24 @@ export class GameScene extends Phaser.Scene {
 
   /** snow drifting across the Cloister (screen-space, above the darkness so it reads) */
   private createWeather() {
+    if (this.level.theme === 'forest') {
+      // fireflies drifting over the grass
+      this.add
+        .particles(0, 0, 'px', {
+          x: { min: 0, max: this.mapW },
+          y: { min: this.level.spawn.y - 90, max: this.level.spawn.y - 8 },
+          lifespan: { min: 2500, max: 5000 },
+          speedX: { min: -10, max: 10 },
+          speedY: { min: -8, max: 6 },
+          scale: { min: 0.5, max: 0.9 },
+          alpha: { start: 0.95, end: 0 },
+          tint: [0xd8ff7a, 0xf0ffb0, 0xb8f060],
+          blendMode: 'ADD',
+          frequency: 220,
+        })
+        .setDepth(DEPTH.FG + 3);
+      return;
+    }
     if (ASH_THEMES.has(this.level.theme)) {
       // grey ash drifting down, the odd ember among it
       this.add
@@ -1609,7 +1654,7 @@ export class GameScene extends Phaser.Scene {
 
   private areaTrack() {
     const t = this.level.theme;
-    return t === 'outdoor' || t === 'frost' || t === 'desert' || t === 'sky' || t === 'ash' ? 'hollow' : 'crypt';
+    return t === 'forest' || t === 'outdoor' || t === 'frost' || t === 'desert' || t === 'sky' || t === 'ash' ? 'hollow' : 'crypt';
   }
 
   // ------------------------------------------------------------------ world flags + doors
@@ -2469,7 +2514,7 @@ export class GameScene extends Phaser.Scene {
       const d = !b && !ch && !sh && !dr && !n && this.doors.find((d) => near(d.def.x, d.def.y, 16));
       const pressed = this.controls.pressed('interact');
       if (b) {
-        prompt = b.lit ? 'Rest at bonfire' : 'Light bonfire';
+        prompt = this.level.theme === 'forest' ? 'Rest by the campfire' : b.lit ? 'Rest at bonfire' : 'Light bonfire';
         if (pressed) this.restAt(b);
       } else if (ch) {
         prompt = 'Open chest';

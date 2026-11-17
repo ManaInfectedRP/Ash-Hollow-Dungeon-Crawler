@@ -12,7 +12,7 @@ Scan the code with your phone's camera to open the game.
 
 ## How a descent works
 
-- **The camp** is home: level up and reinforce your weapon at the bonfire, buy from Hessa (and sell her what you
+- **The camp** – a clearing in a night forest, a campfire crackling under the pines – is home: level up and reinforce your weapon at the bonfire, buy from Hessa (and sell her what you
   drag back up, and buy bigger backpacks), hear the rules from Corvin, then look into **the well**.
 - **The Deep** is generated from a seed: a maze of rooms – fights, traps, treasure chests, old shrines that grant
   a boon for the rest of the run, wandering peddlers and the odd bonfire. Find the stairs down.

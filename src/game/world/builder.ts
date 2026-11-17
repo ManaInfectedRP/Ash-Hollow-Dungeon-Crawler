@@ -3,7 +3,7 @@ import { T, TILE } from '../constants';
 export type EnemyType =
   | 'hollow' | 'knight' | 'ghoul' | 'archer' | 'slime' | 'wraith' | 'monk' | 'carrier' | 'leech' | 'mummy' | 'legionary'
   | 'wisp' | 'cloudslime' | 'maiden' | 'lantern' | 'faceless' | 'hair';
-export type Theme = 'outdoor' | 'crypt' | 'lava' | 'frost' | 'mire' | 'tomb' | 'desert' | 'sky' | 'shrine' | 'ash' | 'keep';
+export type Theme = 'forest' | 'outdoor' | 'crypt' | 'lava' | 'frost' | 'mire' | 'tomb' | 'desert' | 'sky' | 'shrine' | 'ash' | 'keep';
 
 /** A door you interact with to travel to another area (`to`), arriving at door `entry` there. */
 export interface DoorDef {

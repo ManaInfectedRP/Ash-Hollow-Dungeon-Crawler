@@ -46,6 +46,11 @@ class Sfx {
   private fades = new Map<HTMLAudioElement, number>();
   muted = false;
   musicOn = true;
+  /** what your feet are on: grass rustles, stone knocks */
+  ground: 'grass' | 'stone' = 'stone';
+  /** looping background sound for an area ('camp': fire, crickets, wind, the odd owl) */
+  private ambName: 'camp' | null = null;
+  private amb: { timer: number; wind: AudioBufferSourceNode; out: GainNode; lfo: OscillatorNode } | null = null;
   musicVolume = 0.45;
 
   constructor() {
@@ -68,6 +73,7 @@ class Sfx {
 
   setMuted(m: boolean) {
     this.muted = m;
+    if (this.amb) this.amb.out.gain.value = m ? 0 : 1;
     this.saveSettings();
   }
 
@@ -94,8 +100,9 @@ class Sfx {
       void this.loadSamples();
     }
     if (this.ctx.state === 'suspended') void this.ctx.resume();
-    // music that was requested before the first gesture starts now
+    // music (and ambience) requested before the first gesture starts now
     if (this.wantedTrack && !this.currentTrack) this.playMusic(this.wantedTrack, true);
+    if (this.ambName && !this.amb) this.startAmbience();
   }
 
   private async loadSamples() {
@@ -210,9 +217,20 @@ class Sfx {
     if (!this.sample('jump', 0.3, 1.2)) this.burst(0.08, 'highpass', 900, 1600, 0.06);
   }
   land() {
+    if (this.ground === 'grass') {
+      this.sample('step', 0.25, 0.9);
+      this.burst(0.14, 'bandpass', 2400, 900, 0.05, 0.8);
+      return;
+    }
     if (!this.sample('step', 0.45, 0.8)) this.tone(95, 40, 0.1, 'sine', 0.35);
   }
   step() {
+    if (this.ground === 'grass') {
+      // a softer footfall and a brush of grass
+      this.sample('step', 0.1, 1.25);
+      this.burst(0.09, 'highpass', 3200, 1600, 0.03);
+      return;
+    }
     this.sample('step', 0.18, 1);
   }
   /** rising warning before a big swing */
@@ -426,6 +444,81 @@ class Sfx {
   private stopAllMusic() {
     for (const a of this.music.values()) this.fade(a, 0, 400, true);
     this.currentTrack = null;
+  }
+
+  // ------------------------------------------------------------------ ambience
+  /** start / switch / stop the area's ambience (safe to call on every scene start) */
+  setAmbience(name: 'camp' | null) {
+    if (name === this.ambName && (this.amb || !this.ctx)) return;
+    this.stopAmbience();
+    this.ambName = name;
+    if (name) this.startAmbience();
+  }
+
+  private startAmbience() {
+    if (!this.ctx || this.amb || !this.ambName) return;
+    const ctx = this.ctx;
+    // wind in the pines: low, filtered noise that swells and fades
+    const wind = ctx.createBufferSource();
+    wind.buffer = this.noise;
+    wind.loop = true;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 420;
+    const windGain = ctx.createGain();
+    windGain.gain.value = 0.05;
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.07;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 0.035;
+    lfo.connect(lfoGain).connect(windGain.gain);
+    // its own output, so muting silences the wind too
+    const out = ctx.createGain();
+    out.gain.value = this.muted ? 0 : 1;
+    wind.connect(lp).connect(windGain).connect(out).connect(this.master);
+    wind.start();
+    lfo.start();
+    let t = 0;
+    let nextChirp = 0.5;
+    let nextChirp2 = 1.3;
+    let nextOwl = 9 + Math.random() * 10;
+    // the fire crackles, two crickets answer each other, now and then an owl
+    const timer = window.setInterval(() => {
+      if (!this.ok()) return;
+      t += 0.1;
+      if (Math.random() < 0.55) this.burst(0.02 + Math.random() * 0.03, 'highpass', 2600 + Math.random() * 2000, 1500, 0.04 + Math.random() * 0.07);
+      if (Math.random() < 0.02) this.sample('fire', 0.1, 0.9);
+      if (t >= nextChirp) {
+        for (let i = 0; i < 3; i++) this.tone(4700, 4500, 0.03, 'sine', 0.012, i * 0.055);
+        nextChirp = t + 0.7 + Math.random() * 0.5;
+      }
+      if (t >= nextChirp2) {
+        for (let i = 0; i < 4; i++) this.tone(5300, 5100, 0.025, 'sine', 0.008, i * 0.045);
+        nextChirp2 = t + 1.1 + Math.random() * 0.9;
+      }
+      if (t >= nextOwl) {
+        this.tone(410, 360, 0.32, 'sine', 0.03, 0, 900);
+        this.tone(380, 330, 0.5, 'sine', 0.03, 0.45, 900);
+        nextOwl = t + 18 + Math.random() * 20;
+      }
+    }, 100);
+    this.amb = { timer, wind, out, lfo };
+  }
+
+  private stopAmbience() {
+    const a = this.amb;
+    if (!a) return;
+    this.amb = null;
+    clearInterval(a.timer);
+    try {
+      const now = this.ctx!.currentTime;
+      a.out.gain.cancelScheduledValues(now);
+      a.out.gain.setTargetAtTime(0, now, 0.4);
+      a.wind.stop(now + 1.5);
+      a.lfo.stop(now + 1.5);
+    } catch {
+      /* already stopped */
+    }
   }
 
   /** duck the music while a menu is open */
