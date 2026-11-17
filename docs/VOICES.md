@@ -28,7 +28,7 @@ Tre röster: **Hessa** (kvartermästaren i lägret), **Ser Corvin** (brunnens v�
 - **Butiken**: `shop` när den öppnas (om ingen redan pratar), `buy` (ibland `buy_weapon` / `buy_ranged` för
   vapen), `poor` (för lite souls – knappen går att trycka på fast den är grå), `full`, `sell`, `pack` (ny ryggsäck).
 - **Avsked**: `bye` när du lämnar dialogen eller butiken.
-- **Mumlande**: `corvin_idle` – står du nära honom utan att prata säger han något ibland (högst var 45:e sekund).
+- **Mumlande**: `hessa_idle`, `corvin_idle` och `peddler_idle` – står du nära någon av dem utan att prata säger de något ibland (högst var 45:e sekund).
 
 Korta "barks" (1–3 s) spelas när man öppnar/handlar; de längre replikerna (första mötet) kan spelas under
 dialogrutan. Flera varianter per situation gör att det inte låter upprepat.
@@ -165,6 +165,13 @@ dialogrutan. Flera varianter per situation gör att det inte låter upprepat.
 | hessa_bye_03 | [softly] Don't make me sell your things. |
 | hessa_bye_04 | Safe climb. |
 
+### Idle (when you stand near her without talking)
+
+| id | line |
+|---|---|
+| hessa_idle_01 | [muttering] Three loaves, two herbs, one ember… and not a single honest customer. |
+| hessa_idle_02 | [sighs, to herself] Fire needs more wood. Everything needs more something. |
+
 ---
 
 ## Ser Corvin, Keeper of the Well
@@ -293,16 +300,13 @@ dialogrutan. Flera varianter per situation gör att det inte låter upprepat.
 |---|---|
 | peddler_shop_01 | Look, look, but don't lick. |
 | peddler_shop_02 | [whispers] Fresh from the floor below. Barely bloodied. |
-| peddler_shop_03 | Don't ask where I got them. Nobody ever asks twice. |
 
 ### Buying
 
 | id | line |
 |---|---|
 | peddler_buy_01 | [cackles] Yes, yes! Pleasure, pleasure. |
-| peddler_buy_02 | It's yours. Until the Deep wants it back. Heh. |
-| peddler_buy_03 | Oh, the previous owner would be so pleased. If he could still be pleased. |
-| peddler_buy_04 | Sold! No refunds. No returns. No… survivors? Heh, joking. |
+| peddler_buy_02 | Sold! No refunds. No returns. No… survivors? Heh, joking. |
 
 ### Not enough souls
 
@@ -311,18 +315,12 @@ dialogrutan. Flera varianter per situation gör att det inte låter upprepat.
 | peddler_poor_01 | [tuts] No souls, no sale. Kill something. I'll wait. |
 | peddler_poor_02 | Hmm. Your purse is as empty as these halls. |
 
-### Selling to him
-
-| id | line |
-|---|---|
-| peddler_sell_01 | Ooh. Shiny. I'll take it. |
-| peddler_sell_02 | [sniffs] Smells like the last owner. I'll take it anyway. |
-
 ### Pack full
 
 | id | line |
 |---|---|
 | peddler_full_01 | No room in your sack! Drop something. Drop something I can sell back to you. Heh. |
+| peddler_full_02 | [tuts] Your sack's bursting at the seams. Lighten it first. Heh. |
 
 ### Goodbye
 
@@ -330,4 +328,10 @@ dialogrutan. Flera varianter per situation gör att det inte låter upprepat.
 |---|---|
 | peddler_bye_01 | Go on, go on. Mind the stairs. They bite. |
 | peddler_bye_02 | [giggles] See you on the next floor. Or under it. |
-| peddler_bye_03 | Don't die with my wares on you. Bad for business. |
+
+### Idle (when you stand near him without talking)
+
+| id | line |
+|---|---|
+| peddler_idle_01 | [muttering] Buy something, buy something… the dark doesn't pay. Heh. |
+| peddler_idle_02 | [whispers, to himself] Count the coins. Count the bones. Never the same number twice… |
