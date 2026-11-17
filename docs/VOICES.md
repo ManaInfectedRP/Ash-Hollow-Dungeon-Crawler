@@ -39,11 +39,10 @@ dialogrutan. Flera varianter per situation gör att det inte låter upprepat.
 
 **Voice prompt**
 
-> A woman in her late forties, a camp quartermaster at the edge of a haunted forest. Low-to-medium pitch, a
-> slightly husky, weathered voice from years of smoke and cold nights by the fire. Dry, practical and a little
-> sardonic, but warm underneath – she has seen too many adventurers go down the well and not come back. Speaks
-> at a measured, unhurried pace, every word priced like her goods. Light rural Northern English accent. Close,
-> intimate recording, as if standing across a merchant's cart by a campfire. No music, no reverb.
+> A woman in her late forties, quartermaster of a camp at the edge of a haunted forest. Low-to-medium pitch,
+> slightly husky and weathered from years of smoke and cold nights by the fire. Dry, practical, a little
+> sardonic, but warm underneath. Measured, unhurried pace. Light rural Northern English accent. Close, intimate
+> recording, as if across a merchant's cart by a campfire. No music, no reverb.
 
 **Preview text**
 
@@ -172,10 +171,10 @@ dialogrutan. Flera varianter per situation gör att det inte låter upprepat.
 
 **Voice prompt**
 
-> An old knight in his sixties who has stood guard over a cursed well for decades. Deep, slow and gravelly
-> bass voice, a little hoarse, calm and solemn, with the weight of many funerals behind it. He speaks quietly,
-> almost to himself, with long pauses, as if the well might overhear him. Grave and fatherly rather than
-> threatening. Neutral, old-fashioned English accent. Close recording in the cold night air, no music, no reverb.
+> An old knight in his sixties who has guarded a cursed well for decades. Deep, slow, gravelly bass voice, a
+> little hoarse. Calm and solemn, with the weight of many funerals behind it. Speaks quietly, almost to himself,
+> with long pauses. Grave and fatherly, not threatening. Old-fashioned English accent. Close recording in cold
+> night air. No music, no reverb.
 
 **Preview text**
 
@@ -262,11 +261,10 @@ dialogrutan. Flera varianter per situation gör att det inte låter upprepat.
 
 **Voice prompt**
 
-> A strange, hunched old merchant who wanders the depths of a monster-filled dungeon alone, and should not be
-> alive. Middle-high pitch, nasal and a little wheezy, with a crackling, giggling, overly friendly tone that is
-> slightly unsettling. Speaks quickly and conspiratorially, often half-whispering as if sharing a secret, with
-> little cackles between words. Unplaceable, odd accent. Close recording, as if leaning in too close in a dark
-> stone corridor. No music, light echo at most.
+> A hunched old merchant who wanders a monster-filled dungeon alone. Middle-high pitch, nasal and a little
+> wheezy, with a crackling, giggling, overly friendly tone that is slightly unsettling. Speaks quickly and
+> conspiratorially, often half-whispering, with little cackles between words. Odd, unplaceable accent. Close
+> recording, as if leaning in too close in a dark stone corridor. No music.
 
 **Preview text**
 
