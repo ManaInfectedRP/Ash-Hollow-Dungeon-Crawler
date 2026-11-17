@@ -55,8 +55,24 @@ export type WeaponStyle = 'sword' | 'axe' | 'rapier' | 'dagger' | 'none';
 /** fire: extra damage per hit + burning; cold: builds up to frostbite (burst + slow); poison: builds up to a long DoT */
 export type Element = 'fire' | 'cold' | 'poison';
 
+/**
+ * A wand fires a bolt instead of swinging (GameScene.castBolt). 'bounce' arcs and skips along the floor and off
+ * walls; 'bolt' flies straight until it hits something or its time runs out.
+ */
+export interface CastDef {
+  kind: 'bounce' | 'bolt';
+  /** px/s */
+  speed: number;
+  /** seconds in the air */
+  life: number;
+  /** bounce only: floor / wall bounces before it fizzles */
+  bounces?: number;
+}
+
 export interface Weapon {
   id: string;
+  /** a wand: attacks fire this instead of a hitbox (each one still costs its stamina) */
+  cast?: CastDef;
   name: string;
   weight: number;
   /** 1 = with a shield (default), 2 = two-handed (no shield, guards with the blade), 'dual' = a blade in each hand */
@@ -466,7 +482,36 @@ export const ASHEN_GREATSWORD: Weapon = {
   air: { ...LONGSWORD.air, id: 'agair', damage: Math.round(LONGSWORD.air.damage * 1.3) },
 };
 
+/**
+ * Wands: one-handed (keep your shield), they shoot instead of cutting. Light = a quick bolt, heavy = a charged,
+ * bigger one, air = a bolt in mid-jump. Every cast costs stamina. Damage scales with dexterity.
+ */
+function wand(id: string, name: string, element: Element, power: number, cast: CastDef, dmg: number, stamina: number): Weapon {
+  const shot = (aid: string, extra: Partial<A>): A => ({
+    id: aid, startup: 0.12, active: 0.04, recovery: 0.24, damage: dmg, poise: 6, stamina,
+    hitbox: { x: 0, y: 0, w: 0, h: 0 }, lunge: 0, knock: 40, hitstop: 0.03, shake: 0.0012,
+    frames: f('l1w', 'l1s', 'l1r'), ...extra,
+  });
+  return {
+    id, name, weight: 1.5, cast, element: { type: element, power },
+    scaling: { str: 0.1, dex: 0.9 },
+    look: { style: 'rapier', swordLen: 8, bladeW: 1, hilt: 2, guard: 0 },
+    light: [shot('wl', {})],
+    heavy: shot('wh', {
+      startup: 0.34, recovery: 0.34, damage: Math.round(dmg * 1.9), poise: 16, stamina: Math.round(stamina * 1.8),
+      knock: 110, hitstop: 0.06, shake: 0.003, heavy: true, chargeMax: 0.5, frames: f('hw', 'hs', 'hr', 'hc'),
+    }),
+    air: shot('wa', { frames: f('aw', 'as', 'as') }),
+  };
+}
+export const FIRE_WAND = wand('fire_wand', 'Fire Wand', 'fire', 5, { kind: 'bounce', speed: 210, life: 2.2, bounces: 6 }, 14, 14);
+export const FROST_WAND = wand('frost_wand', 'Frost Wand', 'cold', 30, { kind: 'bolt', speed: 300, life: 0.8 }, 13, 13);
+export const POISON_WAND = wand('poison_wand', 'Poison Wand', 'poison', 30, { kind: 'bolt', speed: 210, life: 1.2 }, 11, 12);
+
 export const WEAPONS: Record<string, Weapon> = {
+  fire_wand: FIRE_WAND,
+  frost_wand: FROST_WAND,
+  poison_wand: POISON_WAND,
   ashen_greatsword: ASHEN_GREATSWORD,
   bridal_knife: BRIDAL_KNIFE,
   cloudbreaker: CLOUDBREAKER,

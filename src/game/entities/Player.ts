@@ -598,8 +598,33 @@ export class Player {
     else if (t < e) this.sprite.setFrame(def.frames.strike);
     else this.sprite.setFrame(def.frames.recover);
 
+    // a wand: one bolt at the start of the active window, no hitbox
+    if (this.weapon.cast && t >= s && !a.swung) {
+      a.swung = true;
+      const cm = def.chargeMax ? 1 + 0.6 * (a.charge / def.chargeMax) : 1;
+      const el = this.eq.element ?? this.weapon.element!;
+      this.scene.castBolt(
+        this.x + this.facing * 14,
+        this.y - 10,
+        this.facing,
+        el.type,
+        this.weapon.cast,
+        {
+          damage: Math.round(def.damage * dmgMul * cm),
+          poise: def.poise * cm,
+          dir: this.facing,
+          knock: def.knock,
+          heavy: !!def.heavy,
+          element: { ...el, power: el.power * cm },
+        },
+        def === this.weapon.heavy,
+        (landed) => {
+          if (this.eq.lifeOnHit > 0) this.hp = Math.min(derived().maxHp, this.hp + this.eq.lifeOnHit * landed);
+        },
+      );
+    }
     // active window
-    if (t >= s && t < e) {
+    if (!this.weapon.cast && t >= s && t < e) {
       if (!a.swung) {
         a.swung = true;
         sfx.swing(!!def.heavy);

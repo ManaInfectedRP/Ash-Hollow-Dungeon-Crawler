@@ -9,6 +9,43 @@ export function buildDungeonArt(scene: Phaser.Scene) {
   ladder(scene);
   lootBeam(scene);
   sparkle(scene);
+  bolts(scene);
+}
+
+/** wand shots: a fireball (it rolls, so it is round), a shard of ice and a glob of venom, both pointing right */
+function bolts(scene: Phaser.Scene) {
+  {
+    const { c, ctx } = makeCanvas(9, 9);
+    const p = new Pix(ctx);
+    p.disc(4, 4, 4, '#a8320e');
+    p.disc(4, 4, 3, '#f06a1e');
+    p.disc(4, 3, 2, '#ffb848');
+    p.px(3, 3, '#fff0c0');
+    p.px(4, 2, '#fff0c0');
+    scene.textures.addCanvas('bolt-fire', c);
+  }
+  {
+    const { c, ctx } = makeCanvas(12, 6);
+    const p = new Pix(ctx);
+    p.rect(0, 2, 2, 2, '#3a6a9a');
+    p.rect(2, 1, 6, 4, '#5a9ad0');
+    p.rect(8, 2, 2, 2, '#86c4ec');
+    p.rect(10, 2, 2, 2, '#d0f0ff');
+    p.rect(3, 2, 7, 1, '#d0f0ff');
+    p.px(11, 2, '#ffffff');
+    scene.textures.addCanvas('bolt-cold', c);
+  }
+  {
+    const { c, ctx } = makeCanvas(11, 8);
+    const p = new Pix(ctx);
+    p.rect(0, 3, 2, 2, '#2e5a24');
+    p.rect(1, 2, 3, 4, '#3e7a2e');
+    p.disc(7, 4, 3, '#4e9a36');
+    p.disc(7, 3, 2, '#86cc54');
+    p.px(7, 2, '#ecffc8');
+    p.px(8, 3, '#b4e87a');
+    scene.textures.addCanvas('bolt-poison', c);
+  }
 }
 
 /**

@@ -1,3 +1,4 @@
+import { grid } from './lib/grid.mjs';
 // Character definitions: rig proportions + palette + parts + poses.
 // Frame names are the contract with the game code (Player.ts / Enemy.ts / Boss.ts).
 import { BOW, HEADS, PAULDRONS, SHIELDS, SHIELD_PALS, STAFF, WEAPONS } from './parts.mjs';
@@ -164,7 +165,20 @@ export const ELEMENT_PAL = {
  * An entry is a grid, or { grid, pal } for a recoloured variant. `base` names the item whose
  * icon gets recoloured for the inventory (see the icon pass in build.mjs).
  */
+/** a wand: a dark wooden shaft, a gold collar and a crystal; the crystal takes the element's colours */
+export const WAND = grid(
+  [
+    '...........xbx.',
+    'gnNnNnNnNngxBWx',
+    '...........xbx.',
+  ],
+  [2, 1],
+);
+
 export const PLAYER_WEAPONS = {
+  fire_wand: { grid: WAND, pal: ELEMENT_PAL.fire },
+  frost_wand: { grid: WAND, pal: ELEMENT_PAL.cold },
+  poison_wand: { grid: WAND, pal: ELEMENT_PAL.poison },
   longsword: WEAPONS.longsword,
   greataxe: WEAPONS.greataxe,
   rapier: WEAPONS.rapier,

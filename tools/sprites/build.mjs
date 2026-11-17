@@ -14,7 +14,7 @@ import { PNG } from 'pngjs';
 import { renderFrame, renderShield, renderWeaponSheet } from './rig.mjs';
 import {
   ARCHER_SHEET, COLOSSUS_SHEET, CORVIN_SHEET, GHOUL_SHEET, HOLLOW_SHEET, KNIGHT_SHEET, MERCHANT_SHEET, SHEPHERD_SHEET, SLIME_SHEET,
-  ELEMENT_PAL, PLAYER_ARMORS, PLAYER_WEAPONS, SHIELD_PALS, SHIELDS, WARDEN_SHEET, WEAPON_PALETTE, playerSheet,
+  ELEMENT_PAL, WAND, PLAYER_ARMORS, PLAYER_WEAPONS, SHIELD_PALS, SHIELDS, WARDEN_SHEET, WEAPON_PALETTE, playerSheet,
 } from './characters.mjs';
 import { stampRotated } from './lib/grid.mjs';
 import { FINALE_PLAYER_WEAPONS, FINALE_WEAPONS, KING_SHEET } from './finale.mjs';
@@ -228,6 +228,7 @@ function loadPng(file) {
 const icons = {};
 // plain new blades
 icons.shortsword = weaponIcon(PLAYER_WEAPONS.shortsword, WEAPON_PALETTE);
+for (const [id, el] of [['fire_wand', 'fire'], ['frost_wand', 'cold'], ['poison_wand', 'poison']]) icons[id] = weaponIcon(WAND, { ...WEAPON_PALETTE, ...ELEMENT_PAL[el] });
 icons.ashen_greatsword = weaponIcon(FINALE_WEAPONS.ashenGreatsword, { ...WEAPON_PALETTE, ...FINALE_PLAYER_WEAPONS.ashen_greatsword.pal });
 icons.bridal_knife = weaponIcon(SHRINE_WEAPONS.knife, { ...WEAPON_PALETTE, ...SHRINE_PLAYER_WEAPONS.bridal_knife.pal });
 icons.cloudbreaker = weaponIcon(SKY_WEAPONS.cloudbreaker, { ...WEAPON_PALETTE, ...SKY_WEAPON_PAL });

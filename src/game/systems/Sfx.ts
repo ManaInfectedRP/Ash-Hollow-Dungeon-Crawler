@@ -200,6 +200,27 @@ class Sfx {
     this.sample('hit', heavy ? 0.8 : 0.6, heavy ? 0.8 : 1);
     this.tone(heavy ? 150 : 190, 45, heavy ? 0.22 : 0.15, 'sine', heavy ? 0.6 : 0.45);
   }
+  /** a wand's shot: a whoosh with a voice per element */
+  cast(el: 'fire' | 'cold' | 'poison', big = false) {
+    const v = big ? 1.3 : 1;
+    if (el === 'fire') {
+      this.burst(0.22 * v, 'lowpass', 1800, 300, 0.32 * v);
+      this.tone(220, 90, 0.18 * v, 'sawtooth', 0.06, 0, 900);
+    } else if (el === 'cold') {
+      this.burst(0.14 * v, 'highpass', 5000, 2500, 0.2 * v);
+      this.tone(1400, 2200, 0.12 * v, 'sine', 0.07);
+      this.tone(2100, 3000, 0.1 * v, 'sine', 0.04, 0.03);
+    } else {
+      this.burst(0.2 * v, 'bandpass', 700, 300, 0.3 * v, 3);
+      this.tone(160, 260, 0.16 * v, 'triangle', 0.08);
+    }
+  }
+
+  /** a bolt bounces (soft) or bursts (louder) */
+  fizzle(soft: boolean) {
+    this.burst(soft ? 0.06 : 0.14, 'bandpass', soft ? 2400 : 1600, soft ? 1200 : 500, soft ? 0.08 : 0.2, 1.5);
+  }
+
   hurt() {
     this.sample('hit', 0.6, 0.75);
     this.tone(200, 80, 0.2, 'square', 0.1, 0, 900);

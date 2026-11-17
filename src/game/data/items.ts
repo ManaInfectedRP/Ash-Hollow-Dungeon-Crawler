@@ -204,6 +204,18 @@ export const ITEMS: Record<string, ItemDef> = {
       defense: 0.32, poise: 48, weight: 24, fireRes: 0.15,
     },
   },
+  fire_wand: {
+    id: 'fire_wand', name: 'Fire Wand', kind: 'weapon', icon: 'sword', weapon: 'fire_wand', value: 500,
+    desc: 'One-handed: keep your shield. Spits a ball of fire that bounces along the floor and off the walls, setting whatever it hits burning. Every shot costs stamina; hold the heavy for a bigger one. Scales with dexterity.',
+  },
+  frost_wand: {
+    id: 'frost_wand', name: 'Frost Wand', kind: 'weapon', icon: 'sword', weapon: 'frost_wand', value: 500,
+    desc: 'One-handed. Fires a fast shard of ice straight ahead, until it hits something or melts. Builds up frost to frostbite. Every shot costs stamina. Scales with dexterity.',
+  },
+  poison_wand: {
+    id: 'poison_wand', name: 'Poison Wand', kind: 'weapon', icon: 'sword', weapon: 'poison_wand', value: 500,
+    desc: 'One-handed. Fires a slow glob of venom straight ahead, until it hits something or dries out. Builds up poison. Every shot costs stamina. Scales with dexterity.',
+  },
   sand_scepter: {
     id: 'sand_scepter', name: 'Sand Scepter', kind: 'weapon', icon: 'axe', weapon: 'sand_scepter',
     desc: "Taken from the Sandstone Sphinx. A one-handed mace of carved sandstone with a green-lit gem. Slow, but every blow breaks poise. Scales with strength.",

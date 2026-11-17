@@ -12,6 +12,7 @@ export const PLAYER_WEAPON_LOOKS = [
   'flame_longsword', 'frost_longsword', 'venom_longsword', 'flame_shortsword', 'frost_shortsword',
   'flame_greataxe', 'frost_greataxe', 'venom_rapier', 'frost_spear',
   'sand_scepter', 'gladius', 'cloudbreaker', 'bridal_knife', 'ashen_greatsword',
+  'fire_wand', 'frost_wand', 'poison_wand',
 ] as const;
 export const PLAYER_ARMOR_LOOKS = [
   'garb', 'knight_armor', 'hunter_leathers', 'ember_robes', 'warden_plate', 'frostbound_mantle', 'mire_leathers', 'mummy_wraps', 'legion_plate', 'whale_scale', 'white_cloak', 'white_kimono', 'ashen_regalia', 'naked',
@@ -38,6 +39,7 @@ export const ATLAS_ITEMS = [
   'sand_scepter', 'gladiator_blades', 'mummy_wraps', 'legion_plate',
   'cloudbreaker', 'whale_scale', 'white_cloak',
   'bridal_knife', 'white_kimono', 'ashen_greatsword', 'ashen_regalia',
+  'fire_wand', 'frost_wand', 'poison_wand',
 ] as const;
 
 export const ATLAS_PROPS = [

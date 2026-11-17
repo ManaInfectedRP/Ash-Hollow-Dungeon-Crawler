@@ -16,6 +16,9 @@ Scan the code with your phone's camera to open the game.
   drag back up, and buy bigger backpacks), hear the rules from Corvin, then look into **the well**.
 - **The Deep** is generated from a seed: a maze of rooms – fights, traps, treasure chests, old shrines that grant
   a boon for the rest of the run, wandering peddlers and the odd bonfire. Find the stairs down.
+- **Wands** shoot instead of cut, at a stamina cost per shot (hold heavy for a bigger one): the Fire Wand's ball
+  bounces along the floor and off walls, the Frost and Poison Wands fire straight until they hit or fade.
+  One-handed, so you keep your shield. Hessa sells them, and they turn up as loot.
 - **Every third floor a guardian** bars the way – ten of them, one per band of floors, each in its own land
   (crypts, ossuary, lava, frost, mire, sand, the gladiators' pit, the sky, the weeping halls, the ashen abyss).
   Past the ten, the cycle starts over, harder.
