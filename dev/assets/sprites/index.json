@@ -214,6 +214,24 @@
   "frameHeight": 32,
   "frames": 44
  },
+ "weapon-fire_wand": {
+  "frameWidth": 33,
+  "frameHeight": 33,
+  "frames": 72,
+  "stepDegrees": 5
+ },
+ "weapon-frost_wand": {
+  "frameWidth": 33,
+  "frameHeight": 33,
+  "frames": 72,
+  "stepDegrees": 5
+ },
+ "weapon-poison_wand": {
+  "frameWidth": 33,
+  "frameHeight": 33,
+  "frames": 72,
+  "stepDegrees": 5
+ },
  "weapon-longsword": {
   "frameWidth": 39,
   "frameHeight": 39,
