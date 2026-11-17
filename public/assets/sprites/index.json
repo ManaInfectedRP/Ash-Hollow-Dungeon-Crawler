@@ -215,20 +215,20 @@
   "frames": 44
  },
  "weapon-fire_wand": {
-  "frameWidth": 33,
-  "frameHeight": 33,
+  "frameWidth": 23,
+  "frameHeight": 23,
   "frames": 72,
   "stepDegrees": 5
  },
  "weapon-frost_wand": {
-  "frameWidth": 33,
-  "frameHeight": 33,
+  "frameWidth": 23,
+  "frameHeight": 23,
   "frames": 72,
   "stepDegrees": 5
  },
  "weapon-poison_wand": {
-  "frameWidth": 33,
-  "frameHeight": 33,
+  "frameWidth": 23,
+  "frameHeight": 23,
   "frames": 72,
   "stepDegrees": 5
  },

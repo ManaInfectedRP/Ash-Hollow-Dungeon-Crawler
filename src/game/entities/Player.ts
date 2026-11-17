@@ -101,6 +101,12 @@ export class Player {
   private ripHit = false;
   private hurtFor = 0.36;
   private bones: Record<string, Bone>;
+  /** the weapon's angle this frame (the bone's, or a wand's own pose) */
+  private weaponAngle = 0;
+  /** a wand's crystal: a glow at its tip, flaring on every cast */
+  private wandTip!: Phaser.GameObjects.Image;
+  private wandFlash = 0;
+  private tipPos = { x: 0, y: 0 };
   private poise = 0;
   private poiseT = 0;
   private regen: { perSec: number; left: number } | null = null;
@@ -144,6 +150,7 @@ export class Player {
     this.weaponSprite = scene.add.image(x, y, this.weaponKey ?? '__DEFAULT').setDepth(DEPTH.PLAYER + 1).setVisible(false);
     this.shieldSprite = scene.add.image(x, y, '__DEFAULT').setDepth(DEPTH.PLAYER - 1).setVisible(false);
     this.blade = new BladeFx(scene, this.weaponSprite);
+    this.wandTip = scene.add.image(x, y, 'glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.FG + 3).setVisible(false);
     this.blade.setWeapon(this.eq.weapon.sheet ?? this.eq.weapon.id, this.eq.element?.type ?? null);
     this.body.setSize(10, 20).setOffset(19, 12);
     this.body.setMaxVelocityY(520);
@@ -219,12 +226,69 @@ export class Player {
     const dir = this.facing;
     const lx = b.x + 0.5 - fw / 2; // bone relative to the sprite's bottom-centre origin
     const steps = Math.round(360 / WEAPON_STEP);
-    const idx = (((Math.round(b.a / WEAPON_STEP)) % steps) + steps) % steps;
+    const ang = this.weapon.cast ? this.wandAngle(b.a) : b.a;
+    this.weaponAngle = ang;
+    const idx = (((Math.round(ang / WEAPON_STEP)) % steps) + steps) % steps;
     this.weaponSprite
       .setTexture(this.weaponKey, `r${idx}`)
       .setPosition(this.sprite.x + lx * dir, this.sprite.y - fh + b.y + 0.5)
       .setScale(dir, 1)
       .setVisible(this.sprite.visible);
+  }
+
+  /**
+   * A wand is held up, crystal to the sky, while you stand, run or jump. Casting raises it a little higher on
+   * the wind-up (it trembles while a heavy charges), then flicks it forward and lets it wobble up and down.
+   * Other states (roll, block, drink, hurt) keep the body frame's own angle.
+   */
+  private wandAngle(boneA: number) {
+    const now = this.scene.time.now / 1000;
+    if (this.state === 'attack' && this.atk) {
+      const { def, t, charge } = this.atk;
+      const s = def.startup;
+      if (t < s) {
+        const shake = def.chargeMax ? Math.sin(now * 55) * 4 * (charge / def.chargeMax) : 0;
+        return Phaser.Math.Linear(-55, -85, Math.min(1, t / s)) + shake;
+      }
+      const k = t - s;
+      return -6 + 26 * Math.sin(k * 30) * Math.exp(-k * 6.5);
+    }
+    if (this.state === 'move') {
+      const running = Math.abs(this.body.velocity.x) > 20 && this.onGround;
+      return -65 + Math.sin(now * (running ? 11 : 2.4)) * (running ? 5 : 3);
+    }
+    return boneA;
+  }
+
+  /** the wand's crystal: where bolts come from */
+  wandTipPos() {
+    return this.tipPos;
+  }
+
+  /** a wand: the crystal glows and sheds motes; it flares when a bolt leaves it */
+  private updateWandTip(dt: number) {
+    const el = this.weapon.cast ? (this.eq.element ?? this.weapon.element) : null;
+    const show = !!el && this.weaponSprite.visible;
+    this.wandTip.setVisible(show);
+    if (!show || !el) return;
+    const a = Phaser.Math.DegToRad(this.weaponAngle);
+    const wa = this.facing < 0 ? Math.PI - a : a;
+    const x = this.weaponSprite.x + Math.cos(wa) * 8;
+    const y = this.weaponSprite.y + Math.sin(wa) * 8;
+    this.tipPos = { x, y };
+    this.wandFlash = Math.max(0, this.wandFlash - dt * 4);
+    const now = this.scene.time.now / 1000;
+    const pulse = Math.sin(now * 6) * 0.5 + 0.5;
+    const tint = el.type === 'fire' ? 0xff7a28 : el.type === 'cold' ? 0x8ad0ff : 0x8ee05a;
+    this.wandTip
+      .setPosition(x, y)
+      .setTint(tint)
+      .setScale(0.14 + pulse * 0.04 + this.wandFlash * 0.35)
+      .setAlpha(0.6 + pulse * 0.2 + this.wandFlash * 0.2);
+    const casting = this.state === 'attack';
+    if (Math.random() < (casting ? 0.6 : 0.14)) {
+      this.scene.fx.status(x + Phaser.Math.Between(-1, 1), y + Phaser.Math.Between(-1, 1), el.type, 1);
+    }
   }
 
   /**
@@ -263,9 +327,10 @@ export class Player {
       swinging,
       x: this.weaponSprite.x,
       y: this.weaponSprite.y,
-      angle: b?.a ?? 0,
+      angle: this.weapon.cast ? this.weaponAngle : (b?.a ?? 0),
       facing: this.facing,
     };
+    this.updateWandTip(dt);
     this.blade.update(dt, pose);
     if (!el || !pose.visible) return;
     // swinging: a shower of motes; idle fire blades still give off the odd ember
@@ -277,7 +342,9 @@ export class Player {
 
   /** light from a fire blade, for the darkness layer */
   bladeLight() {
-    return this.state === 'dead' ? null : this.blade.light();
+    if (this.state === 'dead') return null;
+    if (this.weapon.cast && this.wandTip.visible) return { x: this.tipPos.x, y: this.tipPos.y, r: 26 + this.wandFlash * 40, flicker: 0.15 };
+    return this.blade.light();
   }
 
   /** Pick up equipment changes (from the React inventory) between actions. */
@@ -603,8 +670,11 @@ export class Player {
       a.swung = true;
       const cm = def.chargeMax ? 1 + 0.6 * (a.charge / def.chargeMax) : 1;
       const el = this.eq.element ?? this.weapon.element!;
+      // the crystal flares; the bolt leaves from in front of it, at chest height
+      this.wandFlash = 1;
+      this.scene.fx.status(this.tipPos.x, this.tipPos.y, el.type, def.heavy ? 8 : 4);
       this.scene.castBolt(
-        this.x + this.facing * 14,
+        this.x + this.facing * 12,
         this.y - 10,
         this.facing,
         el.type,

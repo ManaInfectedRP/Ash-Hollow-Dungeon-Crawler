@@ -11,6 +11,9 @@ const REACH: Record<string, [number, number]> = {
   greataxe: [9, 15],
   rapier: [5, 14],
   bone_scythe: [8, 20],
+  fire_wand: [4, 9],
+  frost_wand: [4, 9],
+  poison_wand: [4, 9],
 };
 
 /** outer colour, hot core colour, strength of the tracer */

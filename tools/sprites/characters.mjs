@@ -168,9 +168,9 @@ export const ELEMENT_PAL = {
 /** a wand: a dark wooden shaft, a gold collar and a crystal; the crystal takes the element's colours */
 export const WAND = grid(
   [
-    '...........xbx.',
-    'gnNnNnNnNngxBWx',
-    '...........xbx.',
+    '........x.',
+    'gnNnNngxBW',
+    '........x.',
   ],
   [2, 1],
 );
