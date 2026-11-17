@@ -204,6 +204,11 @@ export class Player {
     return false;
   }
 
+  /** an attack (or a shot) needs its full stamina cost – no swinging on an empty bar */
+  private afford(def: PlayerAttackDef) {
+    return this.stamina >= def.stamina;
+  }
+
   private spend(n: number) {
     this.stamina = Math.max(0, this.stamina - n);
     this.staminaDelay = 0.55;
@@ -226,7 +231,7 @@ export class Player {
     const dir = this.facing;
     const lx = b.x + 0.5 - fw / 2; // bone relative to the sprite's bottom-centre origin
     const steps = Math.round(360 / WEAPON_STEP);
-    const ang = this.weapon.cast ? this.wandAngle(b.a) : b.a;
+    const ang = this.weapon.cast ? this.rangedAngle(b.a) : b.a;
     this.weaponAngle = ang;
     const idx = (((Math.round(ang / WEAPON_STEP)) % steps) + steps) % steps;
     this.weaponSprite
@@ -237,25 +242,41 @@ export class Player {
   }
 
   /**
-   * A wand is held up, crystal to the sky, while you stand, run or jump. Casting raises it a little higher on
-   * the wind-up (it trembles while a heavy charges), then flicks it forward and lets it wobble up and down.
+   * Ranged weapons hold their own pose instead of the body frame's angle:
+   * - a wand is held up, crystal to the sky; casting raises it higher on the wind-up (trembling while a heavy
+   *   charges), then flicks it forward and lets it wobble up and down;
+   * - a bow is carried upright at your side and levelled at the foe while you draw (it shakes at full draw),
+   *   kicking up a touch when the arrow leaves;
+   * - a crossbow is carried pointing down, snapped level to shoot, kicks up hard and sinks while you crank it.
    * Other states (roll, block, drink, hurt) keep the body frame's own angle.
    */
-  private wandAngle(boneA: number) {
+  private rangedAngle(boneA: number) {
+    const style = this.weapon.cast!.style;
     const now = this.scene.time.now / 1000;
     if (this.state === 'attack' && this.atk) {
       const { def, t, charge } = this.atk;
       const s = def.startup;
-      if (t < s) {
-        const shake = def.chargeMax ? Math.sin(now * 55) * 4 * (charge / def.chargeMax) : 0;
-        return Phaser.Math.Linear(-55, -85, Math.min(1, t / s)) + shake;
-      }
+      const tremble = def.chargeMax ? Math.sin(now * 55) * 4 * (charge / def.chargeMax) : 0;
       const k = t - s;
-      return -6 + 26 * Math.sin(k * 30) * Math.exp(-k * 6.5);
+      if (style === 'wand') {
+        if (t < s) return Phaser.Math.Linear(-55, -85, Math.min(1, t / s)) + tremble;
+        return -6 + 26 * Math.sin(k * 30) * Math.exp(-k * 6.5);
+      }
+      if (style === 'bow') {
+        if (t < s) return Phaser.Math.Linear(25, 0, Math.min(1, t / (s * 0.6))) + tremble * 0.5;
+        return -9 * Math.exp(-k * 9);
+      }
+      // crossbow: level, the kick, then lowered to crank the next bolt in
+      if (t < s) return Phaser.Math.Linear(30, 0, Math.min(1, t / s)) + tremble * 0.4;
+      const reload = def.active + def.recovery;
+      return -20 * Math.exp(-k * 10) + Phaser.Math.Clamp((k - 0.12) / (reload * 0.5), 0, 1) * 35 * (1 - Phaser.Math.Clamp((k - reload * 0.7) / (reload * 0.3), 0, 1));
     }
     if (this.state === 'move') {
       const running = Math.abs(this.body.velocity.x) > 20 && this.onGround;
-      return -65 + Math.sin(now * (running ? 11 : 2.4)) * (running ? 5 : 3);
+      const sway = Math.sin(now * (running ? 11 : 2.4)) * (running ? 5 : 3);
+      if (style === 'wand') return -65 + sway;
+      if (style === 'bow') return 18 + sway;
+      return 32 + sway;
     }
     return boneA;
   }
@@ -267,7 +288,7 @@ export class Player {
 
   /** a wand: the crystal glows and sheds motes; it flares when a bolt leaves it */
   private updateWandTip(dt: number) {
-    const el = this.weapon.cast ? (this.eq.element ?? this.weapon.element) : null;
+    const el = this.weapon.cast?.style === 'wand' ? (this.eq.element ?? this.weapon.element) : null;
     const show = !!el && this.weaponSprite.visible;
     this.wandTip.setVisible(show);
     if (!show || !el) return;
@@ -343,7 +364,7 @@ export class Player {
   /** light from a fire blade, for the darkness layer */
   bladeLight() {
     if (this.state === 'dead') return null;
-    if (this.weapon.cast && this.wandTip.visible) return { x: this.tipPos.x, y: this.tipPos.y, r: 26 + this.wandFlash * 40, flicker: 0.15 };
+    if (this.weapon.cast?.style === 'wand' && this.wandTip.visible) return { x: this.tipPos.x, y: this.tipPos.y, r: 26 + this.wandFlash * 40, flicker: 0.15 };
     return this.blade.light();
   }
 
@@ -500,8 +521,8 @@ export class Player {
     // shield, or the weapon's own guard (two-handed blade, off-hand dagger)
     if (g && this.eq.shield && (c.pressed('block') || c.held('block'))) return this.startGuard(c);
     if (g && this.tryRiposte()) return;
-    if (this.stamina > 0 && this.consume('light')) return this.startAttack(g ? this.weapon.light[0] : this.weapon.air);
-    if (this.stamina > 0 && g && this.consume('heavy')) return this.startAttack(this.weapon.heavy);
+    if (this.afford(g ? this.weapon.light[0] : this.weapon.air) && this.consume('light')) return this.startAttack(g ? this.weapon.light[0] : this.weapon.air);
+    if (this.afford(this.weapon.heavy) && g && this.consume('heavy')) return this.startAttack(this.weapon.heavy);
     if (g && this.consume('flask')) return this.startDrink(null);
     if (g && this.consume('item')) return this.startDrink(useInventoryStore.getState().equipped.quick);
 
@@ -550,8 +571,8 @@ export class Player {
     this.sprite.setFrame('block');
     // attack or roll straight out of the guard
     if (this.tryRiposte()) return;
-    if (this.stamina > 0 && this.consume('light')) return this.startAttack(this.weapon.light[0]);
-    if (this.stamina > 0 && this.consume('heavy')) return this.startAttack(this.weapon.heavy);
+    if (this.afford(this.weapon.light[0]) && this.consume('light')) return this.startAttack(this.weapon.light[0]);
+    if (this.afford(this.weapon.heavy) && this.consume('heavy')) return this.startAttack(this.weapon.heavy);
     if (this.stamina > 0 && this.consume('roll')) return this.startRoll(c);
   }
 
@@ -669,27 +690,33 @@ export class Player {
     if (this.weapon.cast && t >= s && !a.swung) {
       a.swung = true;
       const cm = def.chargeMax ? 1 + 0.6 * (a.charge / def.chargeMax) : 1;
-      const el = this.eq.element ?? this.weapon.element!;
-      // the crystal flares; the bolt leaves from in front of it, at chest height
-      this.wandFlash = 1;
-      this.scene.fx.status(this.tipPos.x, this.tipPos.y, el.type, def.heavy ? 8 : 4);
+      const el = this.eq.element ?? this.weapon.element ?? null;
+      const cast = this.weapon.cast;
+      if (cast.style === 'wand' && el) {
+        // the crystal flares
+        this.wandFlash = 1;
+        this.scene.fx.status(this.tipPos.x, this.tipPos.y, el.type, def.heavy ? 8 : 4);
+      }
       this.scene.castBolt(
         this.x + this.facing * 12,
-        this.y - 10,
+        this.y - 7, // waist height: low enough for small foes (slimes, ghouls) too
         this.facing,
-        el.type,
-        this.weapon.cast,
+        el?.type ?? null,
+        cast,
         {
           damage: Math.round(def.damage * dmgMul * cm),
           poise: def.poise * cm,
           dir: this.facing,
           knock: def.knock,
           heavy: !!def.heavy,
-          element: { ...el, power: el.power * cm },
+          element: el ? { ...el, power: el.power * cm } : undefined,
         },
-        def === this.weapon.heavy,
-        (landed) => {
-          if (this.eq.lifeOnHit > 0) this.hp = Math.min(derived().maxHp, this.hp + this.eq.lifeOnHit * landed);
+        {
+          big: def === this.weapon.heavy,
+          charge: def.chargeMax ? a.charge / def.chargeMax : 0,
+          onLand: (landed) => {
+            if (this.eq.lifeOnHit > 0) this.hp = Math.min(derived().maxHp, this.hp + this.eq.lifeOnHit * landed);
+          },
         },
       );
     }
@@ -723,9 +750,9 @@ export class Player {
     // combo queue + roll cancel in late recovery
     if (t > s * 0.5 && this.consume('light')) a.queued = true;
     if (t >= e + def.recovery * 0.3) {
-      if (a.queued && def.next && this.stamina > 0 && g && !a.air) {
+      if (a.queued && def.next && g && !a.air) {
         const next = this.weapon.light.find((l) => l.id === def.next);
-        if (next) {
+        if (next && this.afford(next)) {
           if (Math.abs(c.moveX) > 0.3) this.facing = c.moveX > 0 ? 1 : -1;
           return this.startAttack(next);
         }

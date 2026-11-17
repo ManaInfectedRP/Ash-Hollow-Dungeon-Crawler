@@ -175,7 +175,75 @@ export const WAND = grid(
   [2, 1],
 );
 
+/** bows are drawn standing up (string on the left, limbs bulging forward), so at angle 0 they aim right */
+export const LONGBOW = grid(
+  [
+    'Nn......',
+    'U.N.....',
+    'U..N....',
+    'U...N...',
+    'U...N...',
+    'U....N..',
+    'U....gN.',
+    'U....gN.',
+    'U....N..',
+    'U...N...',
+    'U...N...',
+    'U..N....',
+    'U.N.....',
+    'Nn......',
+  ],
+  [5, 7],
+);
+/**
+ * crossbows point right, seen from above: a stock with a thick butt, a wide steel prod bent back across the
+ * front, the string drawn back from its tips to the latch, and a bolt's head poking out; pivot = the grip
+ */
+export const CROSSBOW = grid(
+  [
+    '........xb.....',
+    '.......U.xb....',
+    '......U...xb...',
+    '.....U.....xb..',
+    'NNNnnnnnnnnnxbB',
+    'NNn..U.....xb..',
+    '...g..U...xb...',
+    '.......U.xb....',
+    '........xb.....',
+  ],
+  [4, 5],
+);
+export const HEAVY_CROSSBOW = grid(
+  [
+    '..........xb......',
+    '.........U.xb.....',
+    '........U...xb....',
+    '.......U.....xb...',
+    '......U.......xb..',
+    'NNNNnnnnnnnnnnnxbB',
+    'NNNn..U.......xb..',
+    '....g..U.....xb...',
+    '........U...xb....',
+    '.........U.xb.....',
+    '..........xb......',
+  ],
+  [4, 6],
+);
+/** a bow's wood recoloured for its element (string stays pale) */
+export const BOW_PAL = {
+  fire: { N: '#8a2a10', n: '#e8642a', g: '#ffb45a' },
+  cold: { N: '#3a6a9a', n: '#86c4ec', g: '#d0f0ff' },
+  poison: { N: '#2e5a24', n: '#62aa44', g: '#b4e87a' },
+};
+
 export const PLAYER_WEAPONS = {
+  short_bow: BOW,
+  longbow: LONGBOW,
+  flame_bow: { grid: BOW, pal: BOW_PAL.fire },
+  frost_bow: { grid: BOW, pal: BOW_PAL.cold },
+  venom_bow: { grid: BOW, pal: BOW_PAL.poison },
+  light_crossbow: CROSSBOW,
+  heavy_crossbow: { grid: HEAVY_CROSSBOW, pal: { N: '#3a2a20', n: '#5e4230', x: '#3a3a44', b: '#7a7a88', B: '#c8ccd8' } },
   fire_wand: { grid: WAND, pal: ELEMENT_PAL.fire },
   frost_wand: { grid: WAND, pal: ELEMENT_PAL.cold },
   poison_wand: { grid: WAND, pal: ELEMENT_PAL.poison },

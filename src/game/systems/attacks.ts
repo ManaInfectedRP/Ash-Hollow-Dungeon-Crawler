@@ -56,17 +56,26 @@ export type WeaponStyle = 'sword' | 'axe' | 'rapier' | 'dagger' | 'none';
 export type Element = 'fire' | 'cold' | 'poison';
 
 /**
- * A wand fires a bolt instead of swinging (GameScene.castBolt). 'bounce' arcs and skips along the floor and off
- * walls; 'bolt' flies straight until it hits something or its time runs out.
+ * A ranged weapon fires a shot instead of swinging (GameScene.castBolt). 'bounce' arcs and skips along the floor
+ * and off walls; 'bolt' flies straight until it hits something or its time runs out; 'arrow' flies on a slight
+ * arc, points along its flight and sticks in the wall it hits.
  */
 export interface CastDef {
-  kind: 'bounce' | 'bolt';
+  /** how it is held and shot: a wand (held up, flicked), a bow (drawn, two hands), a crossbow (aimed, reloaded) */
+  style: 'wand' | 'bow' | 'crossbow';
+  kind: 'bounce' | 'bolt' | 'arrow';
   /** px/s */
   speed: number;
   /** seconds in the air */
   life: number;
   /** bounce only: floor / wall bounces before it fizzles */
   bounces?: number;
+  /** arrow only: px/s² pulling it down */
+  gravity?: number;
+  /** arrow only: enemies it passes through before it stops (the heavy shot adds one) */
+  pierce?: number;
+  /** projectile texture (defaults to `bolt-<element>`) */
+  tex?: string;
 }
 
 export interface Weapon {
@@ -504,11 +513,89 @@ function wand(id: string, name: string, element: Element, power: number, cast: C
     air: shot('wa', { frames: f('aw', 'as', 'as') }),
   };
 }
-export const FIRE_WAND = wand('fire_wand', 'Fire Wand', 'fire', 5, { kind: 'bounce', speed: 210, life: 2.2, bounces: 6 }, 14, 14);
-export const FROST_WAND = wand('frost_wand', 'Frost Wand', 'cold', 30, { kind: 'bolt', speed: 300, life: 0.8 }, 13, 13);
-export const POISON_WAND = wand('poison_wand', 'Poison Wand', 'poison', 30, { kind: 'bolt', speed: 210, life: 1.2 }, 11, 12);
+export const FIRE_WAND = wand('fire_wand', 'Fire Wand', 'fire', 5, { style: 'wand', kind: 'bounce', speed: 210, life: 2.2, bounces: 6 }, 14, 14);
+export const FROST_WAND = wand('frost_wand', 'Frost Wand', 'cold', 30, { style: 'wand', kind: 'bolt', speed: 300, life: 0.8 }, 13, 13);
+export const POISON_WAND = wand('poison_wand', 'Poison Wand', 'poison', 30, { style: 'wand', kind: 'bolt', speed: 210, life: 1.2 }, 11, 12);
+
+/**
+ * Bows: two-handed (no shield, a poor guard with the stave). Light = a quick, half-drawn shot; heavy = hold to draw
+ * fully – harder, faster and flatter the longer you hold; air = a shot in mid-jump. Every arrow costs stamina.
+ * Scale with dexterity.
+ */
+interface RangedStats {
+  dmg: number;
+  stamina: number;
+  weight: number;
+  speed: number;
+  gravity: number;
+  element?: { type: Element; power: number };
+  scaling?: { str: number; dex: number };
+}
+function bow(id: string, name: string, s: RangedStats & { draw: number }, sheet?: string): Weapon {
+  const shot = (aid: string, extra: Partial<A>): A => ({
+    id: aid, startup: s.draw, active: 0.04, recovery: 0.2, damage: s.dmg, poise: 6, stamina: s.stamina,
+    hitbox: { x: 0, y: 0, w: 0, h: 0 }, lunge: 0, knock: 50, hitstop: 0.03, shake: 0.001,
+    frames: f('tw', 'ts', 'tr'), ...extra,
+  });
+  return {
+    id, name, weight: s.weight, hands: 2, sheet,
+    guard: { absorb: 0.35, stability: 0.2 },
+    element: s.element,
+    cast: { style: 'bow', kind: 'arrow', speed: s.speed, life: 1.6, gravity: s.gravity, tex: 'arrow' },
+    scaling: s.scaling ?? { str: 0.25, dex: 1 },
+    look: { style: 'none', swordLen: 0, bladeW: 0, hilt: 0, guard: 0 },
+    light: [shot('bl', {})],
+    heavy: shot('bh', {
+      startup: s.draw + 0.18, recovery: 0.26, damage: Math.round(s.dmg * 1.9), poise: 14, stamina: Math.round(s.stamina * 1.6),
+      knock: 120, hitstop: 0.06, shake: 0.003, heavy: true, chargeMax: 0.7, frames: f('tw', 'ts', 'tr', 'tw'),
+    }),
+    air: shot('ba', { startup: Math.max(0.1, s.draw - 0.06), frames: f('aw', 'as', 'as') }),
+  };
+}
+
+/**
+ * Crossbows: aimed in a blink, but every bolt has to be cranked back in (a long recovery). Flat, fast and hard;
+ * the heavy is a steadied shot that punches through one more foe. The light crossbow is one-handed (keep your
+ * shield); the heavy one needs both hands and goes through two foes even on a light shot.
+ */
+function crossbow(id: string, name: string, s: RangedStats & { reload: number; hands: 1 | 2; pierce: number }): Weapon {
+  const shot = (aid: string, extra: Partial<A>): A => ({
+    id: aid, startup: 0.09, active: 0.04, recovery: s.reload, damage: s.dmg, poise: 12, stamina: s.stamina,
+    hitbox: { x: 0, y: 0, w: 0, h: 0 }, lunge: 0, knock: 90, hitstop: 0.05, shake: 0.002,
+    frames: f('tw', 'ts', 'tr'), ...extra,
+  });
+  return {
+    id, name, weight: s.weight, hands: s.hands,
+    guard: s.hands === 2 ? { absorb: 0.5, stability: 0.35 } : undefined,
+    element: s.element,
+    cast: { style: 'crossbow', kind: 'arrow', speed: s.speed, life: 1.4, gravity: s.gravity, pierce: s.pierce, tex: 'xbolt' },
+    scaling: s.scaling ?? { str: 0.35, dex: 0.45 },
+    look: { style: 'none', swordLen: 0, bladeW: 0, hilt: 0, guard: 0 },
+    light: [shot('xl', {})],
+    heavy: shot('xh', {
+      startup: 0.32, recovery: s.reload + 0.15, damage: Math.round(s.dmg * 1.6), poise: 24, stamina: Math.round(s.stamina * 1.5),
+      knock: 160, hitstop: 0.08, shake: 0.004, heavy: true, chargeMax: 0.4, frames: f('tw', 'ts', 'tr', 'tw'),
+    }),
+    air: shot('xa', { frames: f('aw', 'as', 'as') }),
+  };
+}
+
+export const SHORT_BOW = bow('short_bow', 'Short Bow', { dmg: 11, stamina: 10, weight: 2.5, speed: 340, gravity: 130, draw: 0.16 });
+export const LONGBOW = bow('longbow', 'Longbow', { dmg: 17, stamina: 14, weight: 4, speed: 440, gravity: 95, draw: 0.26, scaling: { str: 0.45, dex: 0.95 } });
+export const FLAME_BOW = bow('flame_bow', 'Flame Bow', { dmg: 11, stamina: 11, weight: 2.5, speed: 340, gravity: 130, draw: 0.16, element: { type: 'fire', power: 4 } });
+export const FROST_BOW = bow('frost_bow', 'Frost Bow', { dmg: 11, stamina: 11, weight: 2.5, speed: 340, gravity: 130, draw: 0.16, element: { type: 'cold', power: 24 } });
+export const VENOM_BOW = bow('venom_bow', 'Venom Bow', { dmg: 11, stamina: 11, weight: 2.5, speed: 340, gravity: 130, draw: 0.16, element: { type: 'poison', power: 24 } });
+export const LIGHT_CROSSBOW = crossbow('light_crossbow', 'Light Crossbow', { dmg: 20, stamina: 14, weight: 5, speed: 520, gravity: 90, reload: 0.55, hands: 1, pierce: 0 });
+export const HEAVY_CROSSBOW = crossbow('heavy_crossbow', 'Heavy Crossbow', { dmg: 32, stamina: 20, weight: 9, speed: 560, gravity: 60, reload: 0.85, hands: 2, pierce: 1, scaling: { str: 0.6, dex: 0.3 } });
 
 export const WEAPONS: Record<string, Weapon> = {
+  short_bow: SHORT_BOW,
+  longbow: LONGBOW,
+  flame_bow: FLAME_BOW,
+  frost_bow: FROST_BOW,
+  venom_bow: VENOM_BOW,
+  light_crossbow: LIGHT_CROSSBOW,
+  heavy_crossbow: HEAVY_CROSSBOW,
   fire_wand: FIRE_WAND,
   frost_wand: FROST_WAND,
   poison_wand: POISON_WAND,

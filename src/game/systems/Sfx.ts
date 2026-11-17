@@ -216,6 +216,24 @@ class Sfx {
     }
   }
 
+  /** a bowstring let go: a twang and the hiss of the arrow */
+  bowShot(full = false) {
+    this.tone(full ? 150 : 190, full ? 110 : 140, 0.16, 'triangle', 0.14, 0, 1200);
+    this.burst(0.12, 'highpass', 3000, 6000, full ? 0.16 : 0.11, 1, 0.01);
+  }
+
+  /** a crossbow's latch and the slap of its prod */
+  crossbowShot(heavy = false) {
+    this.burst(0.05, 'bandpass', 2600, 1800, 0.3, 3);
+    this.tone(heavy ? 110 : 140, heavy ? 70 : 90, 0.14, 'square', 0.08, 0.01, 800);
+    this.burst(0.1, 'highpass', 3500, 6000, 0.12, 1, 0.02);
+  }
+
+  /** an arrow sinks into wood or stone */
+  thunk() {
+    this.burst(0.06, 'lowpass', 900, 200, 0.22);
+  }
+
   /** a bolt bounces (soft) or bursts (louder) */
   fizzle(soft: boolean) {
     this.burst(soft ? 0.06 : 0.14, 'bandpass', soft ? 2400 : 1600, soft ? 1200 : 500, soft ? 0.08 : 0.2, 1.5);

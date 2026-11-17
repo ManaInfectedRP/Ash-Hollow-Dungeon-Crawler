@@ -10,6 +10,21 @@ export function buildDungeonArt(scene: Phaser.Scene) {
   lootBeam(scene);
   sparkle(scene);
   bolts(scene);
+  xbolt(scene);
+}
+
+/** a crossbow bolt: short, thick, a square steel head, two vanes (points right) */
+function xbolt(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(11, 5);
+  const p = new Pix(ctx);
+  p.rect(0, 1, 2, 1, '#c8b088');
+  p.rect(0, 3, 2, 1, '#c8b088');
+  p.rect(1, 2, 7, 1, '#6a4a2c');
+  p.rect(2, 2, 5, 1, '#8a6a44');
+  p.rect(8, 1, 2, 3, '#7a7a88');
+  p.px(10, 2, '#e8ecf4');
+  p.px(9, 1, '#c8ccd8');
+  scene.textures.addCanvas('xbolt', c);
 }
 
 /** wand shots: a fireball (it rolls, so it is round), a shard of ice and a glob of venom, both pointing right */

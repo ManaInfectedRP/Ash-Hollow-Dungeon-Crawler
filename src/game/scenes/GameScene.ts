@@ -58,10 +58,9 @@ interface Projectile {
 
 /** a wand's bolt (the player's): hurts enemies, never the player */
 interface Bolt {
-  el: Element;
+  el: Element | null;
   cast: CastDef;
   sprite: Phaser.GameObjects.Image;
-  glow: Phaser.GameObjects.Image;
   vx: number;
   vy: number;
   life: number;
@@ -71,6 +70,9 @@ interface Bolt {
   hit: Set<Hittable>;
   info: HitInfo;
   onLand?: (n: number) => void;
+  /** arrows: foes it may still pass through */
+  pierce: number;
+  glow: Phaser.GameObjects.Image | null;
 }
 const BOLT_GRAVITY = 950;
 /** the fire wand's ball skips along the floor at this upward speed (short, quick hops) */
@@ -982,7 +984,7 @@ export class GameScene extends Phaser.Scene {
       else if (e.cfg.key === 'lantern' && !this.gloom) out.push({ x: e.x, y: e.y, r: 44, flicker: 0.1 });
     }
     for (const p of this.projectiles) if (p.kind === 'shard' || p.kind === 'toxglob') out.push({ x: p.sprite.x, y: p.sprite.y, r: 20 });
-    for (const b of this.bolts) out.push({ x: b.sprite.x, y: b.sprite.y, r: b.el === 'fire' ? 40 : 30, flicker: 0.12 });
+    for (const b of this.bolts) if (b.el) out.push({ x: b.sprite.x, y: b.sprite.y, r: b.el === 'fire' ? 40 : 30, flicker: 0.12 });
     for (const g of this.gas) out.push({ x: g.rect.centerX, y: g.rect.centerY, r: 26 });
     for (const c of this.chests) if (!c.open) out.push({ x: c.def.x, y: c.def.y - 6, r: c.def.tier >= 1 ? 34 : 22, flicker: 0.05 });
     for (const s of this.shrines) if (!s.used) out.push({ x: s.def.x, y: s.def.y - 16, r: 40, flicker: 0.06 });
@@ -2360,30 +2362,56 @@ export class GameScene extends Phaser.Scene {
    * A wand's shot from (x, y) in `dir`. Fire ('bounce') arcs down and skips along the floor and off walls;
    * frost and poison ('bolt') fly straight until they hit something or run out of time.
    */
-  castBolt(x: number, y: number, dir: number, el: Element, cast: CastDef, info: HitInfo, big: boolean, onLand?: (n: number) => void) {
-    const scale = big ? 1.6 : 1;
+  castBolt(
+    x: number, y: number, dir: number, el: Element | null, cast: CastDef, info: HitInfo,
+    opts: { big: boolean; charge: number; onLand?: (n: number) => void },
+  ) {
+    const { big, charge } = opts;
+    const wand = cast.style === 'wand';
+    const scale = wand && big ? 1.6 : 1;
     // never start inside a wall: pull the muzzle back towards the player
     while (this.isSolidAt(x, y) && Math.abs(x - this.player.x) > 2) x -= dir * 2;
-    const sprite = this.add.image(x, y, `bolt-${el}`).setDepth(DEPTH.FX).setScale(scale).setFlipX(dir < 0);
-    const glow = this.add.image(x, y, 'glow').setBlendMode('ADD').setDepth(DEPTH.FX - 1).setTint(BOLT_TINT[el]).setScale(0.45 * scale).setAlpha(0.8);
-    const bounce = cast.kind === 'bounce';
+    const tex = cast.tex ?? `bolt-${el}`;
+    const arrow = cast.kind === 'arrow';
+    // a full draw flies faster and flatter
+    const speed = cast.speed * (wand ? (big ? 1.1 : 1) : 1 + 0.35 * charge);
+    const sprite = this.add.image(x, y, tex).setDepth(DEPTH.FX).setScale(scale).setFlipX(!arrow && dir < 0);
+    if (arrow) sprite.setRotation(dir < 0 ? Math.PI : 0);
+    if (arrow && el) sprite.setTint(BOLT_TINT[el]);
+    const glow = el
+      ? this.add.image(x, y, 'glow').setBlendMode('ADD').setDepth(DEPTH.FX - 1).setTint(BOLT_TINT[el]).setScale((arrow ? 0.3 : 0.45) * scale).setAlpha(0.8)
+      : null;
     this.bolts.push({
-      el, cast, sprite, glow, info, onLand,
-      vx: dir * cast.speed * (big ? 1.1 : 1),
-      vy: bounce ? -90 : 0,
+      el, cast, sprite, glow, info, onLand: opts.onLand,
+      vx: dir * speed,
+      vy: cast.kind === 'bounce' ? -90 : 0,
       life: cast.life * (big ? 1.25 : 1),
       bounces: cast.bounces ?? 0,
-      r: 4 * scale,
+      pierce: (cast.pierce ?? 0) + (arrow && big ? 1 : 0) - (cast.style === 'bow' && big ? 1 : 0),
+      r: arrow ? 3 : 4 * scale,
       hit: new Set(),
     });
-    sfx.cast(el, big);
-    this.fx.status(x, y, el, big ? 6 : 3);
+    if (cast.style === 'bow') sfx.bowShot(big);
+    else if (cast.style === 'crossbow') sfx.crossbowShot(big);
+    else if (el) sfx.cast(el, big);
+    if (el) this.fx.status(x, y, el, big ? 6 : 3);
+  }
+
+  /** an arrow that hit a wall stays in it for a moment */
+  private stickArrow(b: Bolt) {
+    const s = b.sprite;
+    const stuck = this.add.image(s.x, s.y, s.texture.key).setRotation(s.rotation).setDepth(DEPTH.ITEMS).setTint(s.tintTopLeft);
+    if (!b.el) stuck.clearTint();
+    this.tweens.add({ targets: stuck, alpha: 0, delay: 1800, duration: 500, onComplete: () => stuck.destroy() });
+    this.fx.dust(s.x, s.y, 2);
+    sfx.thunk();
   }
 
   private updateBolts(dt: number) {
     this.bolts = this.bolts.filter((b) => {
       const s = b.sprite;
       let dead = (b.life -= dt) <= 0;
+      let wall = false;
       if (b.cast.kind === 'bounce') {
         b.vy += BOLT_GRAVITY * dt;
         // walls: bounce back
@@ -2408,27 +2436,42 @@ export class GameScene extends Phaser.Scene {
         s.rotation += Math.sign(b.vx) * 12 * dt;
         dead ||= b.bounces < 0 || this.isLavaAt(s.x, s.y) || this.isBogAt(s.x, s.y);
         if (Math.random() < 0.6) this.fx.ember(s.x, s.y, 1);
+      } else if (b.cast.kind === 'arrow') {
+        b.vy += (b.cast.gravity ?? 300) * dt;
+        s.x += b.vx * dt;
+        s.y += b.vy * dt;
+        s.rotation = Math.atan2(b.vy, b.vx);
+        const tipX = s.x + Math.cos(s.rotation) * 6;
+        const tipY = s.y + Math.sin(s.rotation) * 6;
+        if (this.isSolidAt(tipX, tipY)) dead = wall = true;
+        if (b.el && Math.random() < 0.5) this.fx.status(s.x, s.y, b.el, 1);
       } else {
         s.x += b.vx * dt;
         dead ||= this.isSolidAt(s.x + Math.sign(b.vx) * b.r, s.y);
-        if (Math.random() < 0.5) this.fx.status(s.x - Math.sign(b.vx) * 4, s.y, b.el, 1);
+        if (b.el && Math.random() < 0.5) this.fx.status(s.x - Math.sign(b.vx) * 4, s.y, b.el, 1);
       }
       dead ||= s.x < 0 || s.x > this.mapW || s.y > this.mapH;
       if (!dead) {
-        const rect = new Phaser.Geom.Rectangle(s.x - b.r - 2, s.y - b.r - 2, b.r * 2 + 4, b.r * 2 + 4);
+        // reaches further down than up, so a shot at waist height still catches small, low foes
+        const rect = new Phaser.Geom.Rectangle(s.x - b.r - 2, s.y - b.r - 3, b.r * 2 + 4, b.r * 2 + 15);
         const landed = this.combat.playerStrike(rect, b.hit, { ...b.info, dir: Math.sign(b.vx) || b.info.dir }, b.info.heavy ? 0.05 : 0.025, b.info.heavy ? 0.003 : 0.0012);
         if (landed) {
           b.onLand?.(landed);
-          dead = true;
+          // a piercing arrow keeps going (each foe is only hit once: `b.hit`)
+          if (b.pierce > 0) b.pierce -= landed;
+          else dead = true;
         }
       }
-      b.glow.setPosition(s.x, s.y);
+      b.glow?.setPosition(s.x, s.y);
       if (dead) {
-        this.fx.status(s.x, s.y, b.el, 7);
-        if (b.el === 'fire') this.fx.ember(s.x, s.y, 6);
-        sfx.fizzle(false);
+        if (wall && b.cast.kind === 'arrow') this.stickArrow(b);
+        if (b.el) {
+          this.fx.status(s.x, s.y, b.el, 7);
+          if (b.el === 'fire') this.fx.ember(s.x, s.y, 6);
+          if (b.cast.kind !== 'arrow') sfx.fizzle(false);
+        }
         s.destroy();
-        b.glow.destroy();
+        b.glow?.destroy();
       }
       return !dead;
     });

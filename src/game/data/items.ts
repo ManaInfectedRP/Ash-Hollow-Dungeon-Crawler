@@ -204,6 +204,34 @@ export const ITEMS: Record<string, ItemDef> = {
       defense: 0.32, poise: 48, weight: 24, fireRes: 0.15,
     },
   },
+  short_bow: {
+    id: 'short_bow', name: 'Short Bow', kind: 'weapon', icon: 'sword', weapon: 'short_bow', value: 350,
+    desc: 'Two-handed. Quick, light arrows on a falling arc. Tap for a snap shot; hold the heavy to draw fully – harder, faster and flatter. Every arrow costs stamina. Scales with dexterity.',
+  },
+  longbow: {
+    id: 'longbow', name: 'Longbow', kind: 'weapon', icon: 'sword', weapon: 'longbow', value: 800,
+    desc: 'Two-handed. A tall yew bow: slower to draw, but its arrows fly far and flat and hit hard. Hold the heavy to draw fully. Scales with dexterity and some strength.',
+  },
+  flame_bow: {
+    id: 'flame_bow', name: 'Flame Bow', kind: 'weapon', icon: 'sword', weapon: 'flame_bow', value: 900,
+    desc: 'Two-handed. The string smoulders: every arrow leaves it burning, and so does whatever it hits.',
+  },
+  frost_bow: {
+    id: 'frost_bow', name: 'Frost Bow', kind: 'weapon', icon: 'sword', weapon: 'frost_bow', value: 900,
+    desc: 'Two-handed. Rimed wood: its arrows build up frost until the foe bursts into frostbite.',
+  },
+  venom_bow: {
+    id: 'venom_bow', name: 'Venom Bow', kind: 'weapon', icon: 'sword', weapon: 'venom_bow', value: 900,
+    desc: 'Two-handed. The arrowheads come off the string wet with venom: hits build up poison.',
+  },
+  light_crossbow: {
+    id: 'light_crossbow', name: 'Light Crossbow', kind: 'weapon', icon: 'sword', weapon: 'light_crossbow', value: 700,
+    desc: 'One-handed: keep your shield. Aimed in a blink, a flat, fast bolt that hits hard – then a long crank to reload. Hold the heavy for a steadied shot that goes through a foe.',
+  },
+  heavy_crossbow: {
+    id: 'heavy_crossbow', name: 'Heavy Crossbow', kind: 'weapon', icon: 'sword', weapon: 'heavy_crossbow', value: 1200,
+    desc: 'Two-handed. An iron-bound arbalest: its bolts punch through the first foe and keep going. Very slow to reload. Scales with strength.',
+  },
   fire_wand: {
     id: 'fire_wand', name: 'Fire Wand', kind: 'weapon', icon: 'sword', weapon: 'fire_wand', value: 500,
     desc: 'One-handed: keep your shield. Spits a ball of fire that bounces along the floor and off the walls, setting whatever it hits burning. Every shot costs stamina; hold the heavy for a bigger one. Scales with dexterity.',

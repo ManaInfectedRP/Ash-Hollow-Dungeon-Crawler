@@ -19,6 +19,10 @@ Scan the code with your phone's camera to open the game.
 - **Wands** shoot instead of cut, at a stamina cost per shot (hold heavy for a bigger one): the Fire Wand's ball
   bounces along the floor and off walls, the Frost and Poison Wands fire straight until they hit or fade.
   One-handed, so you keep your shield. Hessa sells them, and they turn up as loot.
+- **Bows and crossbows**: the Short Bow, Longbow and Flame / Frost / Venom Bows are two-handed – tap for a quick
+  shot, hold heavy to draw fully (harder, faster, flatter). Crossbows aim in a blink but reload slowly; the Light
+  Crossbow keeps your shield, the Heavy Crossbow's bolts punch through a foe. Every attack and shot needs its
+  full stamina cost.
 - **Every third floor a guardian** bars the way – ten of them, one per band of floors, each in its own land
   (crypts, ossuary, lava, frost, mire, sand, the gladiators' pit, the sky, the weeping halls, the ashen abyss).
   Past the ten, the cycle starts over, harder.
