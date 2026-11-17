@@ -399,6 +399,10 @@ kbd {
   opacity: 0.35;
   cursor: default;
 }
+/* can't afford it: dimmed, but still clickable so the merchant can tell you so */
+.panel button.cant {
+  opacity: 0.35;
+}
 .panel button.primary {
   border-color: var(--gold);
   color: var(--gold);

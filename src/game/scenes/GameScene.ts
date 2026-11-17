@@ -23,6 +23,7 @@ import { CombatSystem, type HitInfo, type Hittable } from '../systems/CombatSyst
 import { Fx } from '../systems/Fx';
 import { Lighting, type Light } from '../systems/Lighting';
 import { sfx } from '../systems/Sfx';
+import { voice } from '../systems/Voice';
 import { clearRunWorld, loadGame, saveGame, type WorldState } from '../systems/SaveSystem';
 import { derived, usePlayerStore } from '../../stores/playerStore';
 import { useGameStore } from '../../stores/gameStore';
@@ -2674,6 +2675,7 @@ export class GameScene extends Phaser.Scene {
       } else if (n) {
         prompt = `Talk to ${n.def.name.split(',')[0]}`;
         if (pressed) this.talkTo(n);
+        else voice.idle(n.def.id);
       } else if (d) {
         const open = !d.def.requires || this.hasFlag(d.def.requires);
         const to = d.def.to;

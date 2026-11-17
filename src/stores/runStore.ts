@@ -27,6 +27,8 @@ export interface Run {
   kills: number;
   /** a wandering merchant's stock per floor ('f<depth>') */
   shops: Record<string, ShopItem[]>;
+  /** you have already met the peddler on this descent (he greets you differently) */
+  peddlerMet?: boolean;
 }
 
 export interface Meta {
@@ -40,6 +42,13 @@ export interface Meta {
   bossesFelled: number;
   /** backpack upgrades bought from Hessa (see data/pack.ts) */
   pack: number;
+  /** what the NPCs remember, so their greetings fit (systems/Voice.ts) */
+  voice: {
+    /** `runs` when you last bought or sold at Hessa's */
+    lastTradeRun: number;
+    /** per NPC: the state of things when you last spoke */
+    seen: Record<string, { runs: number; bosses: number; deaths: number; deepest: number }>;
+  };
 }
 
 export interface RunSummary {
@@ -69,7 +78,10 @@ export interface RunStore {
   summary: RunSummary | null;
 }
 
-export const freshMeta = (): Meta => ({ waystones: [1], deepest: 0, runs: 0, deaths: 0, stain: null, bossesFelled: 0, pack: 0 });
+export const freshMeta = (): Meta => ({
+  waystones: [1], deepest: 0, runs: 0, deaths: 0, stain: null, bossesFelled: 0, pack: 0,
+  voice: { lastTradeRun: 0, seen: {} },
+});
 
 export const useRunStore = create<RunStore>(() => ({
   run: null,

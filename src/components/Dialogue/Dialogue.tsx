@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { EventBus } from '../../game/EventBus';
 import { NPCS, type DialogueChoice } from '../../game/data/npcs';
 import { ITEMS } from '../../game/data/items';
+import { WEAPONS } from '../../game/systems/attacks';
 import { sfx } from '../../game/systems/Sfx';
+import { voice } from '../../game/systems/Voice';
 import { useGameStore } from '../../stores/gameStore';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useInventoryStore } from '../../stores/inventoryStore';
@@ -30,6 +32,7 @@ export function Dialogue() {
     setLine(0);
     setShown(0);
     EventBus.emit('ui:dialogue-node', dialogue.npc, dialogue.node);
+    voice.line(dialogue.npc, dialogue.node, 0);
   }, [dialogue]);
 
   // typewriter
@@ -40,6 +43,7 @@ export function Dialogue() {
   }, [node, shown, text]);
 
   const close = () => {
+    if (dialogue) voice.bark(dialogue.npc, 'bye');
     useGameStore.setState({ dialogue: null });
     EventBus.emit('ui:dialogue-end');
   };
@@ -48,7 +52,10 @@ export function Dialogue() {
     if (!dialogue) return;
     sfx.souls();
     if (c.action.type === 'goto') useGameStore.setState({ dialogue: { npc: dialogue.npc, node: c.action.node } });
-    else if (c.action.type === 'shop') useGameStore.setState({ dialogue: null, shop: dialogue.npc });
+    else if (c.action.type === 'shop') {
+      useGameStore.setState({ dialogue: null, shop: dialogue.npc });
+      voice.bark(dialogue.npc, 'shop', { ifQuiet: true });
+    }
     else close();
   };
 
@@ -58,6 +65,7 @@ export function Dialogue() {
     if (line < node.lines.length - 1) {
       setLine(line + 1);
       setShown(0);
+      if (dialogue) voice.line(dialogue.npc, dialogue.node, line + 1);
     } else if (!node.choices?.length) close();
   };
 
@@ -116,6 +124,7 @@ export function Shop() {
   const stock = shopId === 'wanderer' ? run?.shops[`f${run.depth}`] ?? [] : npc.shop ?? [];
   const canSell = !run;
   const close = () => {
+    voice.bark(shopId, 'bye');
     useGameStore.setState({ shop: null });
     setTab('buy');
     EventBus.emit('ui:dialogue-end');
@@ -125,18 +134,22 @@ export function Shop() {
   const nextPack = shopId === 'quartermaster' ? BACKPACKS[pack] : undefined;
   const buyPack = () => {
     const ps = usePlayerStore.getState();
-    if (!nextPack || ps.souls < nextPack.price) return;
+    if (!nextPack) return;
+    if (ps.souls < nextPack.price) return void voice.bark(shopId, 'poor');
     usePlayerStore.setState({ souls: ps.souls - nextPack.price });
     useRunStore.setState((s) => ({ meta: { ...s.meta, pack: s.meta.pack + 1 } }));
     sfx.levelUp();
+    voice.traded();
+    voice.bark(shopId, 'pack');
     EventBus.emit('ui:save');
   };
   const buy = (item: string, price: number) => {
     const ps = usePlayerStore.getState();
-    if (ps.souls < price) return;
+    if (ps.souls < price) return void voice.bark(shopId, 'poor');
     const inv = useInventoryStore.getState();
     if (!hasRoom(inv.items, inv.equipped, pack, item, 1)) {
       useGameStore.getState().showToast('Your pack is full');
+      voice.bark(shopId, 'full');
       return;
     }
     usePlayerStore.setState({ souls: ps.souls - price });
@@ -152,6 +165,11 @@ export function Shop() {
       }
     }
     sfx.souls();
+    if (shopId === 'quartermaster') voice.traded();
+    // a weapon gets its own remark now and then
+    const w = ITEMS[item]?.weapon ? WEAPONS[ITEMS[item].weapon!] : null;
+    const special = w?.cast && w.cast.style !== 'wand' ? 'buy_ranged' : w ? 'buy_weapon' : null;
+    if (!(special && Math.random() < 0.5 && voice.bark(shopId, special))) voice.bark(shopId, 'buy');
     EventBus.emit('ui:save');
   };
   const sell = (item: string) => {
@@ -159,6 +177,8 @@ export function Shop() {
     if (!price || !useInventoryStore.getState().remove(item, 1)) return;
     usePlayerStore.getState().addSouls(price);
     sfx.souls();
+    voice.traded();
+    voice.bark(shopId, 'sell');
     EventBus.emit('ui:save');
   };
   // anything but what you wear (a spare of a worn item can go)
@@ -185,7 +205,7 @@ export function Shop() {
               <span className="stat-eff">{nextPack ? `Carry ${nextPack.slots} things instead of ${cap}.` : `You carry ${cap} things – no pack is bigger.`}</span>
             </div>
             {nextPack ? (
-              <button disabled={souls < nextPack.price} onClick={buyPack}>
+              <button className={souls < nextPack.price ? 'cant' : ''} onClick={buyPack}>
                 {nextPack.price}
               </button>
             ) : (
@@ -219,7 +239,7 @@ export function Shop() {
                     <span className="stat-eff">{def.affixLines?.length ? def.affixLines.join(' · ') : def.desc}</span>
                   </div>
                   <span className="shop-owned">×{items[e.item] ?? 0}</span>
-                  <button disabled={souls < e.price} onClick={() => buy(e.item, e.price)}>
+                  <button className={souls < e.price ? 'cant' : ''} onClick={() => buy(e.item, e.price)}>
                     {e.price}
                   </button>
                 </div>
