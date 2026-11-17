@@ -79,3 +79,11 @@ souls, weapon weight) and are summed by `computeEquip`, together with the run's 
 World flags for one descent (opened chests, used shrines, felled guardians) start with `run:` and are cleared
 with the run; so are picked-up floor items. Dying removes everything in `atRisk` from the inventory, leaves the
 souls as a stain at that depth, and sends you to the camp; going home keeps it all.
+
+## The backpack
+
+`game/data/pack.ts`: 12 slots to start (`BASE_SLOTS`), four upgrades from Hessa (`BACKPACKS`, kept in
+`meta.pack`). Gear takes a slot per piece except what is worn; consumables and materials one slot per kind.
+A pickup that does not fit stays on the floor. Items you drop from the inventory are `held`: never picked up
+automatically, only with Interact ("Pick up …"), so they can't bounce straight back into the pack. Hessa buys
+anything you are not wearing (`sellPrice`).

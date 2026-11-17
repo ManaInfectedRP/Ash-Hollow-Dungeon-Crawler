@@ -4,6 +4,7 @@ import { ITEMS, lookId, type ItemDef, type ItemKind } from '../../game/data/item
 import { RARITY_COLOR } from '../../game/dungeon/loot';
 import { buffMods, useRunStore } from '../../stores/runStore';
 import { ElementBadge, RarityTag } from '../Deep/Deep';
+import { packCapacity, usedSlots } from '../../game/data/pack';
 import { iconUrl } from '../../game/gfx/icons';
 import { itemSpriteUrl } from '../../game/gfx/sprites';
 import { WEAPONS } from '../../game/systems/attacks';
@@ -73,6 +74,7 @@ export function Inventory() {
   const [tab, setTab] = useState<ItemKind>('weapon');
   const [sel, setSel] = useState<string | null>(null);
   const atRisk = useRunStore((s) => s.run?.atRisk);
+  const packLevel = useRunStore((s) => s.meta.pack);
   useRunStore((s) => s.run?.buffs);
   if (!open) return null;
 
@@ -130,6 +132,15 @@ export function Inventory() {
       <div className="inv">
         <header className="inv-head">
           <h2>Inventory</h2>
+          {(() => {
+            const used = usedSlots(items, equipped);
+            const cap = packCapacity(packLevel);
+            return (
+              <span className={`pack-count ${used >= cap ? 'full' : ''}`} title="Gear takes a slot each (what you wear is free); everything else one slot per kind">
+                Pack {used}/{cap}
+              </span>
+            );
+          })()}
           <button className="inv-close" onClick={close}>
             ✕
           </button>
@@ -258,6 +269,14 @@ export function Inventory() {
                       Equip
                     </button>
                   ))}
+                {(() => {
+                  const worn = [equipped.weapon, equipped.shield, equipped.armor].filter((w) => w === def.id).length;
+                  return (items[def.id] ?? 0) > worn ? (
+                    <button className="drop-btn" onClick={() => EventBus.emit('ui:drop-item', def.id)}>
+                      Drop{def.kind === 'consumable' || def.kind === 'material' ? ' all' : ''}
+                    </button>
+                  ) : null;
+                })()}
                 {def.kind === 'consumable' && (
                   <>
                     <button className="primary" onClick={() => EventBus.emit('ui:use-item', def.id)}>

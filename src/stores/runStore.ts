@@ -38,6 +38,8 @@ export interface Meta {
   /** souls left where you fell: back on that depth (any run) you can take them back */
   stain: { depth: number; souls: number } | null;
   bossesFelled: number;
+  /** backpack upgrades bought from Hessa (see data/pack.ts) */
+  pack: number;
 }
 
 export interface RunSummary {
@@ -67,7 +69,7 @@ export interface RunStore {
   summary: RunSummary | null;
 }
 
-export const freshMeta = (): Meta => ({ waystones: [1], deepest: 0, runs: 0, deaths: 0, stain: null, bossesFelled: 0 });
+export const freshMeta = (): Meta => ({ waystones: [1], deepest: 0, runs: 0, deaths: 0, stain: null, bossesFelled: 0, pack: 0 });
 
 export const useRunStore = create<RunStore>(() => ({
   run: null,

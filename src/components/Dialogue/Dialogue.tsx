@@ -9,6 +9,7 @@ import { useInventoryStore } from '../../stores/inventoryStore';
 import { ItemIcon } from '../Inventory/Inventory';
 import { RARITY_COLOR } from '../../game/dungeon/loot';
 import { markAtRisk, useRunStore } from '../../stores/runStore';
+import { BACKPACKS, hasRoom, packCapacity, sellPrice, usedSlots } from '../../game/data/pack';
 
 const CHARS_PER_SEC = 55;
 
@@ -100,11 +101,6 @@ export function Dialogue() {
 }
 
 /** Merchant shop: buy with souls. */
-/** what a merchant will pay for a piece of your gear (rolled gear only – plain items are not bought) */
-const sellPrice = (id: string) => {
-  const def = ITEMS[id];
-  return def?.value ? Math.round(def.value * 0.6) : 0;
-};
 
 export function Shop() {
   const shopId = useGameStore((s) => s.shop);
@@ -112,6 +108,7 @@ export function Shop() {
   const items = useInventoryStore((s) => s.items);
   const equipped = useInventoryStore((s) => s.equipped);
   const run = useRunStore((s) => s.run);
+  const pack = useRunStore((s) => s.meta.pack);
   const [tab, setTab] = useState<'buy' | 'sell'>('buy');
   if (!shopId) return null;
   const npc = NPCS[shopId];
@@ -123,9 +120,25 @@ export function Shop() {
     setTab('buy');
     EventBus.emit('ui:dialogue-end');
   };
+  const used = usedSlots(items, equipped);
+  const cap = packCapacity(pack);
+  const nextPack = shopId === 'quartermaster' ? BACKPACKS[pack] : undefined;
+  const buyPack = () => {
+    const ps = usePlayerStore.getState();
+    if (!nextPack || ps.souls < nextPack.price) return;
+    usePlayerStore.setState({ souls: ps.souls - nextPack.price });
+    useRunStore.setState((s) => ({ meta: { ...s.meta, pack: s.meta.pack + 1 } }));
+    sfx.levelUp();
+    EventBus.emit('ui:save');
+  };
   const buy = (item: string, price: number) => {
     const ps = usePlayerStore.getState();
     if (ps.souls < price) return;
+    const inv = useInventoryStore.getState();
+    if (!hasRoom(inv.items, inv.equipped, pack, item, 1)) {
+      useGameStore.getState().showToast('Your pack is full');
+      return;
+    }
     usePlayerStore.setState({ souls: ps.souls - price });
     useInventoryStore.getState().add(item, 1);
     const r = useRunStore.getState().run;
@@ -148,15 +161,38 @@ export function Shop() {
     sfx.souls();
     EventBus.emit('ui:save');
   };
-  const equippedIds = new Set(Object.values(equipped).filter(Boolean));
-  const sellable = Object.keys(items).filter((id) => sellPrice(id) > 0 && !equippedIds.has(id));
+  // anything but what you wear (a spare of a worn item can go)
+  const wornIds = [equipped.weapon, equipped.shield, equipped.armor];
+  const spare = (id: string) => (items[id] ?? 0) - wornIds.filter((w) => w === id).length;
+  const sellable = Object.keys(items)
+    .filter((id) => ITEMS[id] && sellPrice(id) > 0 && spare(id) > 0)
+    .sort((a, b) => sellPrice(b) - sellPrice(a));
   return (
     <div className="panel-wrap">
       <div className="panel shop">
         <h2>{npc.name.split(',')[0]}&rsquo;s Wares</h2>
         <div className="rest-meta">
           <span>Souls {souls.toLocaleString('sv-SE')}</span>
+          <span className={used >= cap ? 'warn' : ''}>
+            Pack {used}/{cap}
+          </span>
         </div>
+        {shopId === 'quartermaster' && (
+          <div className="shop-row pack-row">
+            <span className="pack-icon">🎒</span>
+            <div className="shop-info">
+              <span className="shop-name">{nextPack ? nextPack.name : 'Bottomless Haversack'}</span>
+              <span className="stat-eff">{nextPack ? `Carry ${nextPack.slots} things instead of ${cap}.` : `You carry ${cap} things – no pack is bigger.`}</span>
+            </div>
+            {nextPack ? (
+              <button disabled={souls < nextPack.price} onClick={buyPack}>
+                {nextPack.price}
+              </button>
+            ) : (
+              <span className="shop-owned">max</span>
+            )}
+          </div>
+        )}
         {canSell && (
           <nav className="inv-tabs">
             <button className={tab === 'buy' ? 'on' : ''} onClick={() => setTab('buy')}>
@@ -192,7 +228,7 @@ export function Shop() {
           </>
         ) : (
           <>
-            {sellable.length === 0 && <p className="detail-desc dim">Nothing she wants. Bring back rolled gear from the Deep (not what you wear).</p>}
+            {sellable.length === 0 && <p className="detail-desc dim">Nothing to sell but what you wear.</p>}
             {sellable.map((id) => {
               const def = ITEMS[id];
               return (
@@ -202,9 +238,9 @@ export function Shop() {
                     <span className="shop-name" style={{ color: def.rarity ? RARITY_COLOR[def.rarity] : undefined }}>
                       {def.name}
                     </span>
-                    <span className="stat-eff">{def.affixLines?.join(' · ')}</span>
+                    <span className="stat-eff">{def.affixLines?.length ? def.affixLines.join(' · ') : def.kind}</span>
                   </div>
-                  <span className="shop-owned">×{items[id]}</span>
+                  <span className="shop-owned">×{spare(id)}</span>
                   <button onClick={() => sell(id)}>+{sellPrice(id)}</button>
                 </div>
               );

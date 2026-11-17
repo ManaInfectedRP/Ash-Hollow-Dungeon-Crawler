@@ -17,6 +17,7 @@ import { dmgScale, hpScale, soulScale, waystoneDepth } from '../dungeon/tables';
 import { RARITY_COLOR, rollBossDrop, rollChest, rollEliteDrop, rollGear } from '../dungeon/loot';
 import { BOONS, markAtRisk, useRunStore, type Run, type ShopItem } from '../../stores/runStore';
 import { equipStats } from '../systems/equipment';
+import { hasRoom } from '../data/pack';
 import type { LevelData } from '../world/builder';
 import { CombatSystem, type Hittable } from '../systems/CombatSystem';
 import { Fx } from '../systems/Fx';
@@ -67,6 +68,8 @@ interface Pickup {
   beam?: Phaser.GameObjects.Image;
   label?: Phaser.GameObjects.Text;
   rarity?: Rarity;
+  /** dropped by the player: not picked up again until they have walked away from it */
+  held?: boolean;
 }
 
 /** how loud each rarity shouts from the floor: beam height, glow size, glints per second */
@@ -239,6 +242,8 @@ export class GameScene extends Phaser.Scene {
   private shrines: { def: ShrineDef; sprite: Phaser.GameObjects.Sprite; used: boolean }[] = [];
   /** minimap cell the player is in */
   private cell = '';
+  /** when "your pack is full" may be said again */
+  private fullToastT = 0;
 
   private entry: string | undefined;
   private bg: { s: Phaser.GameObjects.TileSprite; f: number }[] = [];
@@ -470,6 +475,7 @@ export class GameScene extends Phaser.Scene {
         this.travel(DEEP_AREA, '', depth);
       },
       'ui:shrine-pick': (id: string, boon: string) => this.pickBoon(id, boon),
+      'ui:drop-item': (id: string) => this.dropItem(id),
       'ui:quit': () => {
         saveGame(this.world);
         this.registry.remove('world');
@@ -1528,6 +1534,38 @@ export class GameScene extends Phaser.Scene {
       if (rarity === 'relic') this.fx.ember(x, y - 8, 14);
     }
     this.pickups.push(pick);
+    return pick;
+  }
+
+  /** out of the pack and onto the floor (gear one at a time, a whole stack of anything else) */
+  private dropItem(id: string) {
+    const inv = useInventoryStore.getState();
+    const have = inv.items[id] ?? 0;
+    const def = ITEMS[id];
+    if (!have || !def || !this.player.alive) return;
+    const eq = inv.equipped;
+    const wornN = [eq.weapon, eq.shield, eq.armor].filter((x) => x === id).length;
+    const stack = def.kind === 'consumable' || def.kind === 'material';
+    const qty = stack ? have : 1;
+    if (have - qty < wornN) {
+      useGameStore.getState().showToast('Take it off first');
+      return;
+    }
+    inv.remove(id, qty);
+    if (eq.quick === id && !useInventoryStore.getState().items[id]) useInventoryStore.setState((s) => ({ equipped: { ...s.equipped, quick: null } }));
+    // it is no longer yours to lose
+    const run = useRunStore.getState().run;
+    if (run?.atRisk[id]) {
+      const left = run.atRisk[id] - qty;
+      const atRisk = { ...run.atRisk };
+      if (left > 0) atRisk[id] = left;
+      else delete atRisk[id];
+      useRunStore.setState({ run: { ...run, atRisk } });
+    }
+    const p = this.spawnPickup(this.player.x + this.player.facing * 6, this.player.feetY, id, qty);
+    p.held = true;
+    sfx.pickup();
+    saveGame(this.world);
   }
 
   private createBossArena() {
@@ -2425,8 +2463,10 @@ export class GameScene extends Phaser.Scene {
       const b = this.bonfires.find((b) => near(b.x, b.y, 22));
       const ch = !b && this.chests.find((c) => !c.open && near(c.def.x, c.def.y, 18));
       const sh = !b && !ch && this.shrines.find((s) => !s.used && near(s.def.x, s.def.y, 20));
-      const n = !b && !ch && !sh && this.npcs.find((n) => near(n.x, n.y, 26));
-      const d = !b && !ch && !sh && !n && this.doors.find((d) => near(d.def.x, d.def.y, 16));
+      // something you dropped: it waits for you to pick it up on purpose
+      const dr = !b && !ch && !sh && this.pickups.find((it) => it.held && Math.abs(it.sprite.x - p.x) < 16 && Math.abs(it.baseY - p.y) < 24);
+      const n = !b && !ch && !sh && !dr && this.npcs.find((n) => near(n.x, n.y, 26));
+      const d = !b && !ch && !sh && !dr && !n && this.doors.find((d) => near(d.def.x, d.def.y, 16));
       const pressed = this.controls.pressed('interact');
       if (b) {
         prompt = b.lit ? 'Rest at bonfire' : 'Light bonfire';
@@ -2437,6 +2477,9 @@ export class GameScene extends Phaser.Scene {
       } else if (sh) {
         prompt = 'Kneel at the shrine';
         if (pressed) this.kneelAt(sh);
+      } else if (dr) {
+        prompt = `Pick up ${ITEMS[dr.item]?.name ?? dr.item}`;
+        if (pressed) dr.held = false;
       } else if (n) {
         prompt = `Talk to ${n.def.name.split(',')[0]}`;
         if (pressed) this.talkTo(n);
@@ -2493,7 +2536,22 @@ export class GameScene extends Phaser.Scene {
     }
     if (!p.alive) return;
     this.pickups = this.pickups.filter((it) => {
-      if (Math.abs(it.sprite.x - p.x) > 14 || Math.abs(it.baseY - p.y) > 20) return true;
+      const far = Math.abs(it.sprite.x - p.x) > 14 || Math.abs(it.baseY - p.y) > 20;
+      if (it.held) {
+        if (Math.abs(it.sprite.x - p.x) > 30 || Math.abs(it.baseY - p.y) > 30) it.held = false;
+        return true;
+      }
+      if (far) return true;
+      const inv = useInventoryStore.getState();
+      if (!hasRoom(inv.items, inv.equipped, useRunStore.getState().meta.pack, it.item, it.qty)) {
+        // a full pack: it stays where it lies
+        if (this.t > this.fullToastT) {
+          useGameStore.getState().showToast('Your pack is full – drop something, or sell at the camp');
+          sfx.locked();
+          this.fullToastT = this.t + 3;
+        }
+        return true;
+      }
       destroyPickup(it);
       if (it.id) this.world.items.push(it.id);
       useInventoryStore.getState().add(it.item, it.qty);

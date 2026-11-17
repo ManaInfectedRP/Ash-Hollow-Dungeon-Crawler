@@ -13,7 +13,7 @@ Scan the code with your phone's camera to open the game.
 ## How a descent works
 
 - **The camp** is home: level up and reinforce your weapon at the bonfire, buy from Hessa (and sell her what you
-  drag back up), hear the rules from Corvin, then look into **the well**.
+  drag back up, and buy bigger backpacks), hear the rules from Corvin, then look into **the well**.
 - **The Deep** is generated from a seed: a maze of rooms – fights, traps, treasure chests, old shrines that grant
   a boon for the rest of the run, wandering peddlers and the odd bonfire. Find the stairs down.
 - **Every third floor a guardian** bars the way – ten of them, one per band of floors, each in its own land
@@ -25,6 +25,10 @@ Scan the code with your phone's camera to open the game.
   through the door after a guardian, or by crushing an **Ember of Return**.
 - **Souls stay where you fall.** Reach that depth again, on any descent, and take them back. Die first, and
   they are gone.
+- **Your pack is small.** It holds 12 things – every piece of gear takes a slot (what you wear is free), and
+  every kind of consumable or material one slot however many you stack. When it is full, loot stays on the
+  floor: drop something (it waits for you to pick it up again), or go home and sell to Hessa. She also sells
+  bigger packs – 16, 20, 24 and finally 28 slots.
 
 ### Loot
 
