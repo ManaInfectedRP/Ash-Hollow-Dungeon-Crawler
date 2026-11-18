@@ -237,28 +237,6 @@ export const INSCRIPTIONS: NoteDef[] = [
     ],
   },
   {
-    id: 'verdict_mire', kind: 'inscription', title: 'Verdict upon the Midwife of the Lowlands',
-    lines: [
-      'We, the Ashen Court, find you, Gretl Hask, midwife of the lowland villages, guilty of the following crimes against the Crown:',
-      'Drowning Three of His Majesty\'s Tax Collectors',
-      'Teaching the Bog to Speak',
-      'Sheltering Children from the King\'s Levy',
-      'For these crimes I do sentence Gretl Hask to be given to the marsh she loved so well. Let the water keep her, as she kept what was ours.',
-      '– Magistrate Corvane Thule, Warden of the Lowland Roads',
-    ],
-  },
-  {
-    id: 'verdict_sphinx', kind: 'inscription', title: 'Verdict upon the Keeper of Riddles',
-    lines: [
-      'We, the Ashen Court, find you, the creature called the Sphinx, guilty of the following insolences against the Crown:',
-      'Answering His Majesty\'s Question with a Question',
-      'Posing a Riddle the Royal Scholars Could Not Solve',
-      'Laughing',
-      'For these insolences I do sentence the Sphinx to guard the sands beneath the world until someone answers it rightly. The Court notes that, as yet, no one has.',
-      '– Archivist Pell Ondrecht, Master of the Royal Library',
-    ],
-  },
-  {
     id: 'decree_well', kind: 'inscription', title: 'Decree of the Burning Throne',
     lines: [
       'By order of the Burning Throne, let it be known to every subject of the realm:',
