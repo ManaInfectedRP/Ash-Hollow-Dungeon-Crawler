@@ -11,6 +11,22 @@ export function buildDungeonArt(scene: Phaser.Scene) {
   sparkle(scene);
   bolts(scene);
   xbolt(scene);
+  note(scene);
+}
+
+/** a document lying on the floor: a curled page with writing and a red wax seal */
+function note(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(12, 7);
+  const p = new Pix(ctx);
+  p.rect(1, 1, 10, 6, '#8a7a5a');
+  p.rect(1, 1, 10, 5, '#d8c8a0');
+  p.rect(0, 2, 1, 4, '#b8a880');
+  p.rect(11, 1, 1, 4, '#b8a880');
+  p.rect(2, 2, 6, 1, '#7a6a4a');
+  p.rect(2, 4, 5, 1, '#7a6a4a');
+  p.rect(8, 3, 2, 2, '#a02a24');
+  p.px(8, 3, '#d04a3a');
+  scene.textures.addCanvas('note', c);
 }
 
 /** a crossbow bolt: short, thick, a square steel head, two vanes (points right) */

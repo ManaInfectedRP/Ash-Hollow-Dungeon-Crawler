@@ -24,7 +24,7 @@ export class TitleScene extends Phaser.Scene {
     const w = this.scale.width;
     const h = this.scale.height;
     this.bg = [];
-    useGameStore.setState({ menu: 'title', boss: null, prompt: null, dead: false, paused: false, restOpen: false, invOpen: false, dialogue: null, shop: null, ending: false, well: false, shrine: null, mapOpen: false });
+    useGameStore.setState({ menu: 'title', boss: null, prompt: null, dead: false, paused: false, restOpen: false, invOpen: false, dialogue: null, note: null, shop: null, ending: false, well: false, shrine: null, mapOpen: false });
 
     // the camp's clearing at night: stars, the moon, ranks of pines and mist
     const sky = this.add.tileSprite(0, 0, w, h, 'bg-sky').setOrigin(0).setScrollFactor(0).setTint(0xb0b8e0);

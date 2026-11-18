@@ -42,6 +42,8 @@ export interface Meta {
   bossesFelled: number;
   /** backpack upgrades bought from Hessa (see data/pack.ts) */
   pack: number;
+  /** documents you have read (data/notes.ts): floors offer the unread ones first */
+  notesRead: string[];
   /** what the NPCs remember, so their greetings fit (systems/Voice.ts) */
   voice: {
     /** `runs` when you last bought or sold at Hessa's */
@@ -81,6 +83,7 @@ export interface RunStore {
 export const freshMeta = (): Meta => ({
   waystones: [1], deepest: 0, runs: 0, deaths: 0, stain: null, bossesFelled: 0, pack: 0,
   voice: { lastTradeRun: 0, seen: {} },
+  notesRead: [],
 });
 
 export const useRunStore = create<RunStore>(() => ({

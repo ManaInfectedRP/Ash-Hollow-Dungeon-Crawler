@@ -44,6 +44,8 @@ export interface FloorMeta {
   rooms: RoomMeta[];
   chests: ChestDef[];
   shrines: ShrineDef[];
+  /** spots where a document lies (which one is picked when the floor is built, from those you haven't read) */
+  notes: { id: string; x: number; y: number }[];
   /** where a bloodstain left on this depth lies (feet position) */
   stainSpot: { x: number; y: number };
   /** the stairs down (feet position), for the debug overlay and the validator */

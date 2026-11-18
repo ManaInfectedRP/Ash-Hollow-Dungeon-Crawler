@@ -57,6 +57,21 @@ class Voice {
     return true;
   }
 
+  /**
+   * The Teller reads a whole document: `teller_<note id>`. `onDuration` gets the recording's length in seconds
+   * once it is known (the scroll is timed to it). False when there is no recording.
+   */
+  playNote(id: string, onDuration: (secs: number) => void) {
+    if (!this.play(`teller_${id}`)) return false;
+    const a = this.audio!;
+    const report = () => {
+      if (Number.isFinite(a.duration) && a.duration > 0) onDuration(a.duration);
+    };
+    if (a.readyState >= 1) report();
+    else a.addEventListener('loadedmetadata', report, { once: true });
+    return true;
+  }
+
   stop() {
     if (!this.audio) return;
     this.audio.pause();

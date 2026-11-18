@@ -17,6 +17,8 @@ export interface GameStore {
   invOpen: boolean;
   /** open conversation: npc id + current node */
   dialogue: { npc: string; node: string } | null;
+  /** a document being read (data/notes.ts id) */
+  note: string | null;
   /** npc id whose shop is open */
   shop: string | null;
   prompt: string | null;
@@ -62,6 +64,7 @@ export const useGameStore = create<GameStore>((set) => ({
   restOpen: false,
   invOpen: false,
   dialogue: null,
+  note: null,
   shop: null,
   prompt: null,
   boss: null,

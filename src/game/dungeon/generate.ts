@@ -323,6 +323,7 @@ function buildFloor(seed: number, depth: number, band: BandDef): FloorResult {
   const rooms: RoomMeta[] = [];
   const chests: ChestDef[] = [];
   const shrines: ShrineDef[] = [];
+  const notes: FloorMeta['notes'] = [];
   const trng = rng.fork('templates');
 
   // 1) carve every used cell and run its template
@@ -449,6 +450,11 @@ function buildFloor(seed: number, depth: number, band: BandDef): FloorResult {
             const it = crng.weighted([['bread', 4], ['ember_herb', 3], ['titanite', 3], ['soul_lost_knight', 2], ['return_ember', 1]] as const);
             b.item(`f${depth}-i${itemN++}`, it, ox + s.c, s.row, it === 'bread' ? 2 : 1);
           }
+        } else if (notes.length < 2 && crng.chance(0.22)) {
+          // a document on the floor (a torn page, a letter, a scholar's note)
+          const low = usable.filter((p) => p.row === oy + FLOOR);
+          const s = low.length ? crng.pick(low) : null;
+          if (s) notes.push({ id: `${id}-note`, ...at(s.c, s.row) });
         }
     }
     function spawnEnemies(n: number, guaranteeElite: boolean) {
@@ -475,7 +481,7 @@ function buildFloor(seed: number, depth: number, band: BandDef): FloorResult {
   const level = b.build() as FloorResult;
   level.delve = {
     depth, seed, boss: false, title: band.name, gw: w, gh: h, cellW: CW, cellH: CH,
-    rooms, chests, shrines, stainSpot, stairs,
+    rooms, chests, shrines, notes, stainSpot, stairs,
   };
   return level;
 }
@@ -561,6 +567,7 @@ function buildBossFloor(seed: number, depth: number, band: BandDef): FloorResult
     ],
     chests: [],
     shrines: [],
+    notes: [],
     stainSpot: b.at(26, F),
     stairs: b.at(89, F),
   };

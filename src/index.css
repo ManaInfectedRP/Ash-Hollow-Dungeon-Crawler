@@ -934,6 +934,39 @@ html.fake-landscape {
   border-top-color: var(--gold);
   cursor: pointer;
 }
+/* a document: fixed-height window, the text rolls up through it */
+.dialogue.note {
+  position: relative;
+}
+.note-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: rgba(10, 8, 12, 0.6);
+  color: var(--gold);
+  font-size: 20px;
+  line-height: 24px;
+  cursor: pointer;
+}
+.note-close:hover {
+  background: rgba(216, 176, 96, 0.15);
+}
+.note-view {
+  position: relative;
+  height: 132px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent);
+  mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent);
+}
+.note-body p {
+  margin: 0 0 10px;
+  font-style: italic;
+  line-height: 1.5;
+}
 .dialogue-name {
   color: var(--gold);
   font-size: 14px;

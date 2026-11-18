@@ -6,7 +6,7 @@ import { useInventoryStore } from '../../stores/inventoryStore';
 import { ITEMS, MAX_UPGRADE, upgradeCost } from '../../game/data/items';
 import { computeEquip } from '../../game/systems/equipment';
 import { Inventory, ItemIcon } from '../Inventory/Inventory';
-import { Dialogue, Shop } from '../Dialogue/Dialogue';
+import { Dialogue, NoteReader, Shop } from '../Dialogue/Dialogue';
 import { OptionsList } from '../Menu/MainMenu';
 import { LootCard, MapOverlay, RunSummary, ShrineMenu, WellMenu } from '../Deep/Deep';
 import { buffMods } from '../../stores/runStore';
@@ -247,7 +247,7 @@ export function Overlays() {
   const paused = useGameStore((s) => s.paused);
   const invOpen = useGameStore((s) => s.invOpen);
   const menu = useGameStore((s) => s.menu);
-  const talking = useGameStore((s) => !!s.dialogue || !!s.shop);
+  const talking = useGameStore((s) => !!s.dialogue || !!s.shop || !!s.note);
   const ending = useGameStore((s) => s.ending);
   const deepMenu = useGameStore((s) => s.well || !!s.shrine || s.mapOpen);
   const halted = paused || invOpen || talking || ending || deepMenu;
@@ -328,6 +328,7 @@ export function Overlays() {
       <RestMenu />
       <Inventory />
       <Dialogue />
+      <NoteReader />
       <Shop />
       <PauseMenu />
       <PreReleaseEnd />

@@ -24,6 +24,7 @@ import { Fx } from '../systems/Fx';
 import { Lighting, type Light } from '../systems/Lighting';
 import { sfx } from '../systems/Sfx';
 import { voice } from '../systems/Voice';
+import { NOTE_BY_ID, NOTES } from '../data/notes';
 import { clearRunWorld, loadGame, saveGame, type WorldState } from '../systems/SaveSystem';
 import { derived, usePlayerStore } from '../../stores/playerStore';
 import { useGameStore } from '../../stores/gameStore';
@@ -266,6 +267,8 @@ export class GameScene extends Phaser.Scene {
   floor: FloorMeta | null = null;
   private chests: { def: ChestDef; sprite: Phaser.GameObjects.Sprite; open: boolean }[] = [];
   private shrines: { def: ShrineDef; sprite: Phaser.GameObjects.Sprite; used: boolean }[] = [];
+  /** documents lying on this floor */
+  private notes: { note: string; x: number; y: number; sprite: Phaser.GameObjects.Image; glint: Phaser.GameObjects.Image | null }[] = [];
   /** minimap cell the player is in */
   private cell = '';
   /** when "your pack is full" may be said again */
@@ -368,6 +371,7 @@ export class GameScene extends Phaser.Scene {
     this.travelling = false;
     this.chests = [];
     this.shrines = [];
+    this.notes = [];
     this.cell = '';
 
     if (this.area === DEEP_AREA) {
@@ -428,6 +432,7 @@ export class GameScene extends Phaser.Scene {
     for (const n of this.level.npcs) this.npcs.push(new Npc(this, n.id, n.x, n.y));
     this.createChests();
     this.createShrines();
+    this.createNotes();
     this.stockWanderer();
     this.refreshDoors();
 
@@ -794,6 +799,38 @@ export class GameScene extends Phaser.Scene {
       const x = c.def.x + (i - (loot.length - 1) / 2) * 14;
       this.time.delayedCall(120 + i * 140, () => this.spawnPickup(x, c.def.y, r.id, r.qty));
     });
+    saveGame(this.world);
+  }
+
+  /**
+   * Documents: each spot gets one you haven't read yet (any, once you've read them all), picked from the floor's
+   * seed so it is the same note if you come back.
+   */
+  private createNotes() {
+    const spots = this.floor?.notes ?? [];
+    if (!spots.length) return;
+    const read = new Set(useRunStore.getState().meta.notesRead);
+    const unread = NOTES.filter((n) => !read.has(n.id));
+    const pool = [...(unread.length >= spots.length ? unread : NOTES)];
+    const rng = new Rng(hashSeed(`${this.floor!.seed}:notes`));
+    rng.shuffle(pool);
+    spots.forEach((s, i) => {
+      const def = pool[i % pool.length];
+      const sprite = this.add.image(s.x, s.y, 'note').setOrigin(0.5, 1).setDepth(DEPTH.ITEMS);
+      const glint = read.has(def.id) ? null : this.add.image(s.x, s.y - 6, 'glint').setDepth(DEPTH.ITEMS + 1).setBlendMode('ADD');
+      if (glint) this.tweens.add({ targets: glint, alpha: { from: 0.2, to: 1 }, scale: { from: 0.6, to: 1.1 }, yoyo: true, repeat: -1, duration: 900 });
+      this.notes.push({ note: def.id, x: s.x, y: s.y, sprite, glint });
+    });
+  }
+
+  private readNote(n: { note: string; glint: Phaser.GameObjects.Image | null }) {
+    this.player.body.setVelocityX(0);
+    sfx.pickup();
+    n.glint?.destroy();
+    n.glint = null;
+    const meta = useRunStore.getState().meta;
+    if (!meta.notesRead.includes(n.note)) useRunStore.setState({ meta: { ...meta, notesRead: [...meta.notesRead, n.note] } });
+    useGameStore.setState({ note: n.note, prompt: null });
     saveGame(this.world);
   }
 
@@ -2655,10 +2692,11 @@ export class GameScene extends Phaser.Scene {
       const b = this.bonfires.find((b) => near(b.x, b.y, 22));
       const ch = !b && this.chests.find((c) => !c.open && near(c.def.x, c.def.y, 18));
       const sh = !b && !ch && this.shrines.find((s) => !s.used && near(s.def.x, s.def.y, 20));
+      const nt = !b && !ch && !sh && this.notes.find((n) => near(n.x, n.y, 16));
       // something you dropped: it waits for you to pick it up on purpose
-      const dr = !b && !ch && !sh && this.pickups.find((it) => it.held && Math.abs(it.sprite.x - p.x) < 16 && Math.abs(it.baseY - p.y) < 24);
-      const n = !b && !ch && !sh && !dr && this.npcs.find((n) => near(n.x, n.y, 26));
-      const d = !b && !ch && !sh && !dr && !n && this.doors.find((d) => near(d.def.x, d.def.y, 16));
+      const dr = !b && !ch && !sh && !nt && this.pickups.find((it) => it.held && Math.abs(it.sprite.x - p.x) < 16 && Math.abs(it.baseY - p.y) < 24);
+      const n = !b && !ch && !sh && !nt && !dr && this.npcs.find((n) => near(n.x, n.y, 26));
+      const d = !b && !ch && !sh && !nt && !dr && !n && this.doors.find((d) => near(d.def.x, d.def.y, 16));
       const pressed = this.controls.pressed('interact');
       if (b) {
         prompt = this.level.theme === 'forest' ? 'Rest by the campfire' : b.lit ? 'Rest at bonfire' : 'Light bonfire';
@@ -2669,6 +2707,9 @@ export class GameScene extends Phaser.Scene {
       } else if (sh) {
         prompt = 'Kneel at the shrine';
         if (pressed) this.kneelAt(sh);
+      } else if (nt) {
+        prompt = `Read: ${NOTE_BY_ID[nt.note]?.title ?? 'a note'}`;
+        if (pressed) this.readNote(nt);
       } else if (dr) {
         prompt = `Pick up ${ITEMS[dr.item]?.name ?? dr.item}`;
         if (pressed) dr.held = false;

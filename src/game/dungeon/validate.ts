@@ -115,6 +115,7 @@ export function validateFloor(level: LevelData): Validation {
   if (m?.stairs) reach('stairs', m.stairs.x, m.stairs.y);
   for (const ch of m?.chests ?? []) reach(`chest ${ch.id}`, ch.x, ch.y);
   for (const s of m?.shrines ?? []) reach(`shrine ${s.id}`, s.x, s.y);
+  for (const n of m?.notes ?? []) reach(`note ${n.id}`, n.x, n.y);
   for (const bf of level.bonfires) reach(`bonfire ${bf.id}`, bf.x, bf.y);
   for (const n of level.npcs) reach(`npc ${n.id}`, n.x, n.y);
   for (const it of level.items) reach(`item ${it.id}`, it.x, it.y);

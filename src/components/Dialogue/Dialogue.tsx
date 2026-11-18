@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { NOTE_BY_ID } from '../../game/data/notes';
 import { EventBus } from '../../game/EventBus';
 import { NPCS, type DialogueChoice } from '../../game/data/npcs';
 import { ITEMS } from '../../game/data/items';
@@ -103,6 +104,93 @@ export function Dialogue() {
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A document: the same box as a conversation, with an X in the corner. The whole text is one block that rolls
+ * up from the bottom while the Teller reads it aloud; the roll takes as long as the recording (or a reading
+ * pace when there is none). Space / Enter / a click skips to the end, Esc or the X closes it.
+ */
+const READ_CHARS_PER_SEC = 14;
+export function NoteReader() {
+  const id = useGameStore((s) => s.note);
+  const note = id ? NOTE_BY_ID[id] : null;
+  const view = useRef<HTMLDivElement>(null);
+  const body = useRef<HTMLDivElement>(null);
+  const [roll, setRoll] = useState<{ from: number; to: number; secs: number; go: boolean } | null>(null);
+
+  const close = () => {
+    voice.stop();
+    useGameStore.setState({ note: null });
+    EventBus.emit('ui:dialogue-end');
+  };
+  const skip = () => setRoll((r) => (r ? { ...r, secs: 0.3, go: true, from: r.to } : r));
+
+  // measure, then start below the window and roll until the last line rests at the bottom
+  useLayoutEffect(() => {
+    setRoll(null);
+    if (!note || !view.current || !body.current) return;
+    const vh = view.current.clientHeight;
+    const bh = body.current.scrollHeight;
+    const to = Math.min(0, vh - bh);
+    const fallback = Math.max(6, note.lines.join(' ').length / READ_CHARS_PER_SEC);
+    setRoll({ from: vh, to, secs: fallback, go: false });
+    let started = false;
+    const start = (secs: number) => {
+      if (started) return;
+      started = true;
+      // let the frame with the start position paint, then roll
+      setTimeout(() => setRoll({ from: vh, to, secs, go: true }), 60);
+    };
+    const spoken = voice.playNote(note.id, (dur) => start(Math.max(4, dur - 0.5)));
+    if (!spoken) start(fallback);
+    // a recording that never reports its length still gets to roll
+    const t = setTimeout(() => start(fallback), 1500);
+    return () => clearTimeout(t);
+  }, [note]);
+
+  useEffect(() => {
+    if (!note) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (['Enter', ' ', 'e', 'E'].includes(e.key)) {
+        e.preventDefault();
+        skip();
+      } else if (e.key === 'Escape') close();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  if (!note) return null;
+  const y = roll ? (roll.go ? roll.to : roll.from) : 9999;
+  return (
+    <div className="dialogue-wrap">
+      <div className="dialogue note" onClick={skip}>
+        <button
+          className="note-close"
+          aria-label="Close"
+          onClick={(e) => {
+            e.stopPropagation();
+            close();
+          }}
+        >
+          ×
+        </button>
+        <div className="dialogue-name">{note.title}</div>
+        <div className="note-view" ref={view}>
+          <div
+            className="note-body"
+            ref={body}
+            style={{ transform: `translateY(${y}px)`, transition: roll?.go ? `transform ${roll.secs}s linear` : 'none' }}
+          >
+            {note.lines.map((l, i) => (
+              <p key={i}>{l}</p>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
