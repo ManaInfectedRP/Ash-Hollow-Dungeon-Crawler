@@ -967,6 +967,17 @@ html.fake-landscape {
   font-style: italic;
   line-height: 1.5;
 }
+/* carved in stone: upright, centred, the charges set apart like a list */
+.inscription .note-body p {
+  font-style: normal;
+  text-align: center;
+  letter-spacing: 0.03em;
+  color: #d8d0c0;
+}
+.inscription .note-body p:last-child {
+  color: var(--gold);
+  font-style: italic;
+}
 .dialogue-name {
   color: var(--gold);
   font-size: 14px;

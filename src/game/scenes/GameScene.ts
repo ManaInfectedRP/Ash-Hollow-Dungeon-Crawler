@@ -24,7 +24,7 @@ import { Fx } from '../systems/Fx';
 import { Lighting, type Light } from '../systems/Lighting';
 import { sfx } from '../systems/Sfx';
 import { voice } from '../systems/Voice';
-import { NOTE_BY_ID, NOTES } from '../data/notes';
+import { INSCRIPTIONS, NOTE_BY_ID, NOTES } from '../data/notes';
 import { clearRunWorld, loadGame, saveGame, type WorldState } from '../systems/SaveSystem';
 import { derived, usePlayerStore } from '../../stores/playerStore';
 import { useGameStore } from '../../stores/gameStore';
@@ -268,7 +268,7 @@ export class GameScene extends Phaser.Scene {
   private chests: { def: ChestDef; sprite: Phaser.GameObjects.Sprite; open: boolean }[] = [];
   private shrines: { def: ShrineDef; sprite: Phaser.GameObjects.Sprite; used: boolean }[] = [];
   /** documents lying on this floor */
-  private notes: { note: string; x: number; y: number; sprite: Phaser.GameObjects.Image; glint: Phaser.GameObjects.Image | null }[] = [];
+  private notes: { note: string; x: number; y: number; statue: boolean; sprite: Phaser.GameObjects.Image; glint: Phaser.GameObjects.Image | null }[] = [];
   /** minimap cell the player is in */
   private cell = '';
   /** when "your pack is full" may be said again */
@@ -810,17 +810,30 @@ export class GameScene extends Phaser.Scene {
     const spots = this.floor?.notes ?? [];
     if (!spots.length) return;
     const read = new Set(useRunStore.getState().meta.notesRead);
-    const unread = NOTES.filter((n) => !read.has(n.id));
-    const pool = [...(unread.length >= spots.length ? unread : NOTES)];
     const rng = new Rng(hashSeed(`${this.floor!.seed}:notes`));
-    rng.shuffle(pool);
-    spots.forEach((s, i) => {
-      const def = pool[i % pool.length];
-      const sprite = this.add.image(s.x, s.y, 'note').setOrigin(0.5, 1).setDepth(DEPTH.ITEMS);
-      const glint = read.has(def.id) ? null : this.add.image(s.x, s.y - 6, 'glint').setDepth(DEPTH.ITEMS + 1).setBlendMode('ADD');
+    // pages get lore and trivia, statues the court's inscriptions; unread ones first
+    const pick = (all: typeof NOTES, n: number) => {
+      const unread = all.filter((d) => !read.has(d.id));
+      const pool = [...(unread.length >= n ? unread : all)];
+      rng.shuffle(pool);
+      return pool;
+    };
+    const pages = pick(NOTES, spots.filter((s) => s.look !== 'statue').length);
+    const carved = pick(INSCRIPTIONS, spots.filter((s) => s.look === 'statue').length);
+    let pi = 0;
+    let ci = 0;
+    for (const s of spots) {
+      const statue = s.look === 'statue';
+      const def = statue ? carved[ci++ % carved.length] : pages[pi++ % pages.length];
+      const sprite = this.add
+        .image(s.x, s.y, statue ? 'statue' : 'note')
+        .setOrigin(0.5, 1)
+        .setDepth(statue ? DEPTH.DECOR + 2 : DEPTH.ITEMS);
+      const gy = statue ? s.y - 14 : s.y - 6;
+      const glint = read.has(def.id) ? null : this.add.image(s.x, gy, 'glint').setDepth(DEPTH.ITEMS + 1).setBlendMode('ADD');
       if (glint) this.tweens.add({ targets: glint, alpha: { from: 0.2, to: 1 }, scale: { from: 0.6, to: 1.1 }, yoyo: true, repeat: -1, duration: 900 });
-      this.notes.push({ note: def.id, x: s.x, y: s.y, sprite, glint });
-    });
+      this.notes.push({ note: def.id, x: s.x, y: s.y, statue, sprite, glint });
+    }
   }
 
   private readNote(n: { note: string; glint: Phaser.GameObjects.Image | null }) {
@@ -1026,6 +1039,7 @@ export class GameScene extends Phaser.Scene {
     for (const g of this.gas) out.push({ x: g.rect.centerX, y: g.rect.centerY, r: 26 });
     for (const c of this.chests) if (!c.open) out.push({ x: c.def.x, y: c.def.y - 6, r: c.def.tier >= 1 ? 34 : 22, flicker: 0.05 });
     for (const s of this.shrines) if (!s.used) out.push({ x: s.def.x, y: s.def.y - 16, r: 40, flicker: 0.06 });
+    for (const n of this.notes) if (n.statue) out.push({ x: n.x, y: n.y - 20, r: 36, flicker: 0.04 });
     for (const e of this.enemies) if (e.alive && e.elite) out.push({ x: e.x, y: e.y, r: 26, flicker: 0.1 });
     for (const s of this.sunk) if (s.c % 2 === 0) out.push({ x: s.c * TILE + 8, y: s.surf.y, r: 58, flicker: 0.1 });
     const bl = this.player?.bladeLight();
@@ -2692,7 +2706,7 @@ export class GameScene extends Phaser.Scene {
       const b = this.bonfires.find((b) => near(b.x, b.y, 22));
       const ch = !b && this.chests.find((c) => !c.open && near(c.def.x, c.def.y, 18));
       const sh = !b && !ch && this.shrines.find((s) => !s.used && near(s.def.x, s.def.y, 20));
-      const nt = !b && !ch && !sh && this.notes.find((n) => near(n.x, n.y, 16));
+      const nt = !b && !ch && !sh && this.notes.find((n) => near(n.x, n.y, n.statue ? 20 : 16));
       // something you dropped: it waits for you to pick it up on purpose
       const dr = !b && !ch && !sh && !nt && this.pickups.find((it) => it.held && Math.abs(it.sprite.x - p.x) < 16 && Math.abs(it.baseY - p.y) < 24);
       const n = !b && !ch && !sh && !nt && !dr && this.npcs.find((n) => near(n.x, n.y, 26));
@@ -2708,7 +2722,7 @@ export class GameScene extends Phaser.Scene {
         prompt = 'Kneel at the shrine';
         if (pressed) this.kneelAt(sh);
       } else if (nt) {
-        prompt = `Read: ${NOTE_BY_ID[nt.note]?.title ?? 'a note'}`;
+        prompt = nt.statue ? 'Read the inscription' : `Read: ${NOTE_BY_ID[nt.note]?.title ?? 'a note'}`;
         if (pressed) this.readNote(nt);
       } else if (dr) {
         prompt = `Pick up ${ITEMS[dr.item]?.name ?? dr.item}`;

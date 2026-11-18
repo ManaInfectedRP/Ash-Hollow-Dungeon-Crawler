@@ -12,6 +12,48 @@ export function buildDungeonArt(scene: Phaser.Scene) {
   bolts(scene);
   xbolt(scene);
   note(scene);
+  statue(scene);
+}
+
+/** a weathered statue of a robed, hooded figure on a plinth with a carved plaque (an inscription to read) */
+function statue(scene: Phaser.Scene) {
+  const W = 20;
+  const H = 38;
+  const { c, ctx } = makeCanvas(W, H);
+  const p = new Pix(ctx);
+  const dark = '#4a4650';
+  const mid = '#6e6a76';
+  const lit = '#8e8a96';
+  // plinth with a plaque
+  p.rect(1, 28, 18, 10, dark);
+  p.rect(2, 28, 16, 1, lit);
+  p.rect(4, 31, 12, 5, '#3a3640');
+  p.rect(5, 32, 10, 1, '#8a7a5a');
+  p.rect(5, 34, 8, 1, '#8a7a5a');
+  p.rect(0, 37, 20, 1, '#2a2630');
+  // robe
+  p.rect(5, 12, 10, 16, mid);
+  p.rect(4, 18, 12, 10, mid);
+  p.rect(5, 12, 2, 16, lit);
+  p.rect(13, 14, 2, 14, dark);
+  p.rect(9, 18, 1, 10, dark);
+  // hood and a bowed, hidden face
+  p.rect(6, 4, 8, 9, mid);
+  p.rect(7, 3, 6, 1, mid);
+  p.rect(6, 4, 2, 8, lit);
+  p.rect(8, 7, 5, 5, '#2a2630');
+  // hands folded over a sword, point down
+  p.rect(7, 15, 6, 2, lit);
+  p.rect(9, 17, 2, 11, '#9a96a2');
+  p.rect(8, 16, 4, 1, '#5a5662');
+  // moss and cracks
+  p.px(14, 24, '#4a5a3a');
+  p.px(15, 25, '#4a5a3a');
+  p.px(4, 26, '#4a5a3a');
+  p.px(11, 9, dark);
+  p.px(12, 10, dark);
+  outline(ctx, 0, 0, W, H, '#110d16');
+  scene.textures.addCanvas('statue', c);
 }
 
 /** a document lying on the floor: a curled page with writing and a red wax seal */

@@ -454,7 +454,9 @@ function buildFloor(seed: number, depth: number, band: BandDef): FloorResult {
           // a document on the floor (a torn page, a letter, a scholar's note)
           const low = usable.filter((p) => p.row === oy + FLOOR);
           const s = low.length ? crng.pick(low) : null;
-          if (s) notes.push({ id: `${id}-note`, ...at(s.c, s.row) });
+          // now and then a statue instead, with a verdict of the old court carved into its plinth (one per floor)
+          const statue = !notes.some((n) => n.look === 'statue') && crng.chance(0.35);
+          if (s) notes.push({ id: `${id}-note`, ...at(s.c, s.row), look: statue ? 'statue' : 'page' });
         }
     }
     function spawnEnemies(n: number, guaranteeElite: boolean) {

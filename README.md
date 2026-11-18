@@ -25,6 +25,7 @@ Scan the code with your phone's camera to open the game.
   full stamina cost.
 - **Documents** lie here and there: torn pages, letters and scholars' notes with the Deep's lore and odd trivia.
   Reading one rolls its text up the screen while the Teller reads it aloud; floors offer the ones you haven't read.
+  Statues carry the burning king's court's verdicts and decrees, carved into their plinths.
 - **Every third floor a guardian** bars the way – ten of them, one per band of floors, each in its own land
   (crypts, ossuary, lava, frost, mire, sand, the gladiators' pit, the sky, the weeping halls, the ashen abyss).
   Past the ten, the cycle starts over, harder.

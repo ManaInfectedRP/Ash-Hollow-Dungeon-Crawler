@@ -168,7 +168,7 @@ export function NoteReader() {
   const y = roll ? (roll.go ? roll.to : roll.from) : 9999;
   return (
     <div className="dialogue-wrap">
-      <div className="dialogue note" onClick={skip}>
+      <div className={`dialogue note${note.kind === 'inscription' ? ' inscription' : ''}`} onClick={skip}>
         <button
           className="note-close"
           aria-label="Close"

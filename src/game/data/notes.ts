@@ -6,8 +6,11 @@
 export interface NoteDef {
   id: string;
   title: string;
-  /** 'lore' (the world's story) or 'trivia' (odd facts about the Deep and its things) */
-  kind: 'lore' | 'trivia';
+  /**
+   * 'lore' (the world's story) and 'trivia' (odd facts) are pages lying on the floor; an 'inscription' is
+   * carved into the plinth of a statue – verdicts and decrees of the burning king's court.
+   */
+  kind: 'lore' | 'trivia' | 'inscription';
   lines: string[];
 }
 
@@ -198,4 +201,85 @@ export const NOTES: NoteDef[] = [
   },
 ];
 
-export const NOTE_BY_ID: Record<string, NoteDef> = Object.fromEntries(NOTES.map((n) => [n.id, n]));
+/** carved into statues: the court's verdicts and decrees, from before and after the king burned */
+export const INSCRIPTIONS: NoteDef[] = [
+  {
+    id: 'verdict_warden', kind: 'inscription', title: 'Verdict upon the Captain of the Guard',
+    lines: [
+      'We, the Ashen Court, find you, Aldric Vane, Captain of the Royal Guard, guilty of the following failings before the Crown:',
+      'Hesitating at the King\'s Command',
+      'Pleading for the Lives of the Court',
+      'Lowering a Blade the Throne Had Raised',
+      'For these failings I do sentence Aldric Vane to stand his post for ever, unrelieved and unrewarded, until the last door he guards has crumbled to dust. Let his loyalty be his chain.',
+      '– Chancellor Ysolde Marr, Voice of the Burning Throne',
+    ],
+  },
+  {
+    id: 'verdict_varro', kind: 'inscription', title: 'Verdict upon the Champion of the Pit',
+    lines: [
+      'We, the Ashen Court, find you, Varro Castellan, Champion of the Royal Pit, guilty of the following offences against the Crown:',
+      'Refusing to Kneel Before the Flame',
+      'Sparing a Foe the King Had Condemned',
+      'Winning a Wager Against His Majesty',
+      'For these offences I do sentence Varro Castellan to fight in the Pit until a worthy opponent ends him. As none is worthy, may he fight for ever, and may the crowd never tire of him.',
+      '– Pitmaster Odran Kell, Keeper of the Royal Games',
+    ],
+  },
+  {
+    id: 'verdict_ayame', kind: 'inscription', title: 'Verdict upon the Bride of the East',
+    lines: [
+      'We, the Ashen Court, find you, Ayame of the Eastern Houses, betrothed to the Crown, guilty of the following transgressions:',
+      'Refusing the Hand Offered by the Throne',
+      'Weeping in the Presence of the King',
+      'Hiding the Prince from the Cleansing Fire',
+      'For these transgressions I do sentence Ayame to wed the Deep itself. Let her veil be her shroud, and let her wedding never end.',
+      '– High Matron Seraphine Dole, Keeper of the Royal Rites',
+    ],
+  },
+  {
+    id: 'verdict_mire', kind: 'inscription', title: 'Verdict upon the Midwife of the Lowlands',
+    lines: [
+      'We, the Ashen Court, find you, Gretl Hask, midwife of the lowland villages, guilty of the following crimes against the Crown:',
+      'Drowning Three of His Majesty\'s Tax Collectors',
+      'Teaching the Bog to Speak',
+      'Sheltering Children from the King\'s Levy',
+      'For these crimes I do sentence Gretl Hask to be given to the marsh she loved so well. Let the water keep her, as she kept what was ours.',
+      '– Magistrate Corvane Thule, Warden of the Lowland Roads',
+    ],
+  },
+  {
+    id: 'verdict_sphinx', kind: 'inscription', title: 'Verdict upon the Keeper of Riddles',
+    lines: [
+      'We, the Ashen Court, find you, the creature called the Sphinx, guilty of the following insolences against the Crown:',
+      'Answering His Majesty\'s Question with a Question',
+      'Posing a Riddle the Royal Scholars Could Not Solve',
+      'Laughing',
+      'For these insolences I do sentence the Sphinx to guard the sands beneath the world until someone answers it rightly. The Court notes that, as yet, no one has.',
+      '– Archivist Pell Ondrecht, Master of the Royal Library',
+    ],
+  },
+  {
+    id: 'decree_well', kind: 'inscription', title: 'Decree of the Burning Throne',
+    lines: [
+      'By order of the Burning Throne, let it be known to every subject of the realm:',
+      'The Well is the King\'s.',
+      'What lies below is the King\'s.',
+      'Those who descend belong to the King.',
+      'Any who return from below shall be counted among the dead, and their names struck from every ledger. Let no one mourn them. Let no one wait for them.',
+      '– Steward Malric Oss, by the hand of His Majesty, the night of the Fire',
+    ],
+  },
+  {
+    id: 'memorial_corvin', kind: 'inscription', title: 'Memorial at the Well',
+    lines: [
+      'Raised by the survivors of the Fire, in defiance of the Steward\'s decree.',
+      'To those who went down,',
+      'and to those who waited,',
+      'and to the one who still does.',
+      'Their names were struck from the ledgers. They are carved here instead, so that someone remembers. Forgive us that the stone is running out of room.',
+      '– The camp at the edge of the forest',
+    ],
+  },
+];
+
+export const NOTE_BY_ID: Record<string, NoteDef> = Object.fromEntries([...NOTES, ...INSCRIPTIONS].map((n) => [n.id, n]));
