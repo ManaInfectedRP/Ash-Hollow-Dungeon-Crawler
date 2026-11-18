@@ -145,7 +145,7 @@ export function NoteReader() {
       // let the frame with the start position paint, then roll
       setTimeout(() => setRoll({ from: vh, to, secs, go: true }), 60);
     };
-    const spoken = voice.playNote(note.id, (dur) => start(Math.max(4, dur - 0.5)));
+    const spoken = voice.playNote(note.id, (dur) => start(Math.max(4, dur - 0.5)), note.kind === 'inscription' ? 'herald' : 'teller');
     if (!spoken) start(fallback);
     // a recording that never reports its length still gets to roll
     const t = setTimeout(() => start(fallback), 1500);

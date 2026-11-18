@@ -58,11 +58,12 @@ class Voice {
   }
 
   /**
-   * The Teller reads a whole document: `teller_<note id>`. `onDuration` gets the recording's length in seconds
-   * once it is known (the scroll is timed to it). False when there is no recording.
+   * A whole document read aloud: pages by the Teller (`teller_<id>`), statue inscriptions by the Herald
+   * (`herald_<id>`). `onDuration` gets the recording's length in seconds once it is known (the scroll is timed
+   * to it). False when there is no recording.
    */
-  playNote(id: string, onDuration: (secs: number) => void) {
-    if (!this.play(`teller_${id}`)) return false;
+  playNote(id: string, onDuration: (secs: number) => void, reader: 'teller' | 'herald' = 'teller') {
+    if (!this.play(`${reader}_${id}`)) return false;
     const a = this.audio!;
     const report = () => {
       if (Number.isFinite(a.duration) && a.duration > 0) onDuration(a.duration);
