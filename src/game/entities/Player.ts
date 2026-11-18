@@ -153,6 +153,8 @@ export class Player {
     this.wandTip = scene.add.image(x, y, 'glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.FG + 3).setVisible(false);
     this.blade.setWeapon(this.eq.weapon.sheet ?? this.eq.weapon.id, this.eq.element?.type ?? null);
     this.body.setSize(10, 20).setOffset(19, 12);
+    // the map's left and right edges are walls (the bottom is open: falling off kills)
+    this.body.setCollideWorldBounds(true);
     this.body.setMaxVelocityY(520);
     const d = derived();
     this.hp = d.maxHp;

@@ -80,6 +80,11 @@ export interface LevelData {
   crumbles: { x: number; y: number; w: number }[];
   /** generated dungeon floors only: rooms, chests, shrines, the minimap (see dungeon/generate.ts) */
   delve?: import('../dungeon/types').FloorMeta;
+  /**
+   * open water at the edge of a level (px): drawn as a lake from `y` (its surface) down, with an invisible wall
+   * at the shore so nobody can walk or jump into it
+   */
+  water?: { x0: number; x1: number; y: number }[];
 }
 
 /** '.' air, '#' rock, '=' plank, '^' spikes, '~' lava, 'i' ice (solid, slippery), '%' bog water, 's' paved stone (never grassy/sandy) */

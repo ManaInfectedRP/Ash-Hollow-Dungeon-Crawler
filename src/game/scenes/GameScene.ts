@@ -295,6 +295,7 @@ export class GameScene extends Phaser.Scene {
   /** top-centre points along every lava lake (for lights and embers) */
   private lavaPoints: { x: number; y: number }[] = [];
   private bogSurfaces: Phaser.GameObjects.TileSprite[] = [];
+  private waterSurfaces: Phaser.GameObjects.TileSprite[] = [];
   private icicles: Icicle[] = [];
   private crumbles: Crumble[] = [];
   private gas: Gas[] = [];
@@ -456,6 +457,7 @@ export class GameScene extends Phaser.Scene {
     this.lighting = new Lighting(this, DARKNESS[this.level.theme]);
     this.createProps();
     this.spawnEnemies();
+    this.createWater();
     this.createPickups();
     this.createBossArena();
     this.placeStain();
@@ -1129,7 +1131,46 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Lakes at the edge of a level (LevelData.water): dark water from the surface down, a rippling surface with
+   * the moon's glints on it, and an invisible wall at the shore – you can't walk or jump into it.
+   */
+  private createWater() {
+    this.waterSurfaces = [];
+    const pools = this.level.water ?? [];
+    if (!pools.length) return;
+    if (!this.textures.exists('water-surface')) {
+      const c = document.createElement('canvas');
+      c.width = 32;
+      c.height = 6;
+      const g = c.getContext('2d')!;
+      g.fillStyle = '#2a4a6a';
+      g.fillRect(0, 2, 32, 4);
+      g.fillStyle = '#4a7aa0';
+      for (let x = 0; x < 32; x++) g.fillRect(x, 1 + Math.round(Math.sin((x / 32) * Math.PI * 4)), 1, 1);
+      g.fillStyle = '#a8d0f0';
+      g.fillRect(5, 1, 3, 1);
+      g.fillRect(21, 2, 2, 1);
+      this.textures.addCanvas('water-surface', c);
+    }
+    for (const w of pools) {
+      const width = w.x1 - w.x0;
+      // depth: lighter near the top, black further down
+      this.add.rectangle(w.x0, w.y + 3, width, 18, 0x18304a, 0.92).setOrigin(0).setDepth(DEPTH.FX + 1);
+      this.add.rectangle(w.x0, w.y + 21, width, this.mapH - w.y, 0x0a1622, 0.97).setOrigin(0).setDepth(DEPTH.FX + 1);
+      const s = this.add.tileSprite(w.x0, w.y, width, 6, 'water-surface').setOrigin(0).setDepth(DEPTH.FX + 2).setAlpha(0.95);
+      this.waterSurfaces.push(s);
+      // the shore: an invisible wall from the sky to below the ground
+      const shore = w.x0 <= 0 ? w.x1 : w.x0;
+      const wall = this.add.zone(shore + (w.x0 <= 0 ? -2 : 2), this.mapH / 2, 4, this.mapH * 3);
+      this.physics.add.existing(wall, true);
+      this.physics.add.collider(this.player.sprite, wall);
+      for (const e of this.enemies) this.physics.add.collider(e.sprite, wall);
+    }
+  }
+
   private updateBog(dt: number) {
+    for (const s of this.waterSurfaces) s.tilePositionX += 6 * dt;
     if (!this.bogSurfaces.length) return;
     for (const s of this.bogSurfaces) s.tilePositionX += 2.5 * dt;
     // a bubble now and then near the camera
